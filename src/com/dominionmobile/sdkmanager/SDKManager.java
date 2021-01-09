@@ -93,7 +93,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import javax.swing.plaf.ColorUIResource;
-import java.util.concurrent.Semaphore;
+import java.util.concurrent.CountDownLatch;
 
 import java.nio.file.Files;
 import java.nio.file.FileSystems;
@@ -164,19 +164,9 @@ public class SDKManager
     static volatile String sADV_BasedOn;
     
     static volatile boolean bBreakOut;
-    static volatile boolean bFinished;
-    static volatile boolean bCommandFinished;
-    static volatile boolean bInternalFinished;
-    static volatile boolean bIOBgThreadFinished;
-    static volatile boolean bDevicesThreadFinished;
-    static volatile boolean bSystemImagesThreadFinished;
     static volatile boolean bIncludeObsolete;
-    static volatile boolean bGetPackagesThreadFinished;
-    static volatile boolean bGetAVDsThreadFinished;
     static volatile boolean bTextAreaInit;
-    static volatile boolean bInteractiveCommandFinished;
-    static volatile boolean bAcceptLicensesSelected;
-    static volatile boolean bCommandToFileFinished;
+    //static volatile boolean bAcceptLicensesSelected;
     static volatile boolean bHideOutput;
     static volatile boolean bUpdateSelected;
     
@@ -193,7 +183,6 @@ public class SDKManager
 	static ArrayList UpdateAr;
 	
 	private static SDKManager sdkManager;
-	private static Semaphore commandControl = new Semaphore(1);
 	
 	static final int WINDOWS = 0;
 	static final int LINUX = 1;
@@ -215,6 +204,10 @@ public class SDKManager
 	static final String CREATE_CANCEL = "create_cancel";
 	static final String PACKAGE_SUBMIT = "package_submit";
 	static final String PACKAGE_CANCEL = "package_cancel";
+	
+	static CountDownLatch interactiveRequestLatch;
+	static CountDownLatch commandRequestLatch;
+	static CountDownLatch operationRequestLatch;
 
 	private CommandBgThread commandBgThread;
 	private GetDevicesBgThread getDevicesBgThread;
@@ -222,7 +215,6 @@ public class SDKManager
 	private GetPackagesBgThread getPackagesBgThread;
 	private GetAVDsBgThread getAVDsBgThread;
 	private InteractiveCommand interactiveCommand;
-	private InteractiveTwoCommand interactiveTwoCommand;
     
     //}}}
      
@@ -342,25 +334,20 @@ public class SDKManager
 				sb.append("\n");
 			}
 			
-			bCommandFinished = false;
+			commandRequestLatch = new CountDownLatch(1);
 			sInternalCommand = sb.toString();
 			commandBgThread = new CommandBgThread();
 			commandBgThread.start();
                 
 			// Wait for Thread to finish..
-			while ( true )
-			{
-				try
-				{
-					Thread.sleep(100);
-				}
-				catch (InterruptedException ie)
-				{
-				}
-				
-				if ( bCommandFinished )
-					break;
-			}
+            try
+            {
+                commandRequestLatch.await();
+            }
+            catch (InterruptedException ie)
+            {
+            }
+			
 
 /*		    
 			if ( commandResultS == null )
@@ -472,8 +459,9 @@ public class SDKManager
                 }
             }
 
-            //System.out.println("Exiting GetAVDsBgThread");
-            bGetAVDsThreadFinished = true;
+            if ( operationRequestLatch != null )
+                operationRequestLatch.countDown();
+            
 		}
 	 }    //}}}
 	 
@@ -536,25 +524,20 @@ public class SDKManager
 				sb.append("\n");
 			}
 			
-			bCommandFinished = false;
+			commandRequestLatch = new CountDownLatch(1);
 			sInternalCommand = sb.toString();
 			commandBgThread = new CommandBgThread();
 			commandBgThread.start();
 	
 			// Wait for Thread to finish..
-			while ( true )
-			{
-				try
-				{
-					Thread.sleep(100);
-				}
-				catch (InterruptedException ie)
-				{
-				}
-
-				if ( bCommandFinished )
-					break;
-			}
+            try
+            {
+                commandRequestLatch.await();
+            }
+            catch (InterruptedException ie)
+            {
+            }
+			
 
 /*		    
 			if ( commandResultS == null )
@@ -594,7 +577,9 @@ public class SDKManager
                 }   // End while..              
             }
 
-            bDevicesThreadFinished = true;
+            if ( operationRequestLatch != null )
+                operationRequestLatch.countDown();
+            
 		}
 	 }    //}}}
 
@@ -717,26 +702,19 @@ public class SDKManager
 				sb.append("\n");
 			}
 			
-			bCommandFinished = false;
+			commandRequestLatch = new CountDownLatch(1);
 			sInternalCommand = sb.toString();
 			commandBgThread = new CommandBgThread();
 			commandBgThread.start();
 
 			// Wait for Thread to finish..
-			while ( true )
-			{
-				try
-				{
-					Thread.sleep(100);
-				}
-				catch (InterruptedException ie)
-				{
-				}
-
-				if ( bCommandFinished )
-					break;
-			}
-			
+            try
+            {
+                commandRequestLatch.await();
+            }
+            catch (InterruptedException ie)
+            {
+            }
 
 /*
 			if ( commandResultS == null )
@@ -866,7 +844,9 @@ public class SDKManager
             }
 
             //System.out.println("\nExiting GetPackagesBgThread");
-            bGetPackagesThreadFinished = true;
+            if ( operationRequestLatch != null )
+                operationRequestLatch.countDown();
+            
 		}
 	 }    //}}}
 
@@ -948,26 +928,20 @@ public class SDKManager
 				sb.append("\n");
 			}
 			
-			bCommandFinished = false;
+			commandRequestLatch = new CountDownLatch(1);
 			sInternalCommand = sb.toString();
 			commandBgThread = new CommandBgThread();
 			commandBgThread.start();
 	
 			// Wait for Thread to finish..
-			while ( true )
-			{
-				try
-				{
-					Thread.sleep(100);
-				}
-				catch (InterruptedException ie)
-				{
-				}
-
-				if ( bCommandFinished )
-					break;
-			}
-
+            try
+            {
+                commandRequestLatch.await();
+            }
+            catch (InterruptedException ie)
+            {
+            }
+			
 /*		    
 			if ( commandResultS == null )
 				System.out.println("commandResultS null");
@@ -1009,7 +983,9 @@ public class SDKManager
                 }   // End while..              
             }
 
-            bSystemImagesThreadFinished = true;
+            if ( operationRequestLatch != null )
+                operationRequestLatch.countDown();
+            
 		}
 	 }    //}}}
 
@@ -1211,211 +1187,9 @@ public class SDKManager
 		
 	}    //}}}
 
-	//{{{   InteractiveCommand    readLine()
-    class InteractiveCommand extends Thread
-    {
-		public void run()
-		{
-		    //System.out.println("\nInteractiveCommand run()");
-		    //System.out.println("sInternalCommand: '"+sInternalCommand+"'");
-		    
-            ProcessBuilder processBuilder;
-            Process process = null;
-            InputStream inputStream;
-            InputStream errorStream;
-            OutputStream outputStream;
-            BufferedReader inputBufferedReader = null;
-            BufferedReader errorBufferedReader = null;
-            String sLine = "";
-            StringBuffer sB;
-            StringBuffer sBOut;
-            int iExitCode = 0;
-            int iExitVal = 0;
-            
-            byte[] bReplyDA = {(byte)0x0d, (byte)0x0a};
-            String sZeroDZeroA = new String(bReplyDA);
-			
-            byte[] bReply = {(byte)0x79, (byte)0x0d, (byte)0x0a};
-            String sReply = new String(bReply);
-            
-            try
-            {        
-                processBuilder = new ProcessBuilder();
-                
-                if ( iOS == LINUX_MAC )
-                    processBuilder.command("/bin/bash", "-c", sInternalCommand);
-                else
-                    processBuilder.command("cmd.exe", "/c", sInternalCommand);
-                
-                process = processBuilder.start();
-            }
-            catch (IOException ioe)
-            {
-            }
-            
-            inputStream = process.getInputStream();
-            errorStream = process.getErrorStream();
-            outputStream = process.getOutputStream();
-            sBOut = new StringBuffer();
-            consoleTextArea.setText("");
-            
-            try
-            {        
-                inputBufferedReader = new BufferedReader(new InputStreamReader(inputStream));
-                errorBufferedReader = new BufferedReader(new InputStreamReader(errorStream));
-                
-                while ( true )
-                {
-                    if ( inputBufferedReader.ready() )
-                    {
-                       sLine = inputBufferedReader.readLine();
-                       if ( sLine == null )
-                       {
-                           //System.out.println("sLine null, breaking..");
-                           break;
-                       }
-                       else
-                       {
-                           //System.out.println("(input): '"+sLine+"'");
-
-                           sB = new StringBuffer(sLine);
-                           sB.append(sZeroDZeroA);
-                           
-                           sBOut.append(sB.toString());
- 
-/*
-                            System.out.println("\n\n");
-                            char cTChr;
-                            
-                            for ( int g = 0; g < sB.length(); g++ )
-                            {
-                                cTChr = (char)sB.charAt(g);
-                                if ( (cTChr < 0x21) || (cTChr > 0x7e) )
-                                    System.out.print("["+Integer.toHexString((int)cTChr)+"]");
-                                else
-                                    System.out.print(cTChr);
-                            }
-                            System.out.println("\n\n length(): "+sB.length());
-/**/  
-
-                            if ( (bHideOutput == false) || (sShowCommandResults.equals("true")) )
-                            {
-                                consoleTextArea.append(sB.toString());
-                            }
-                            
-                            if ( sB.toString().contains("(y/N)") )
-                            {
-                                // Reply for accept license agreement
-                                System.out.println("===Sending reply===");
-                                outputStream.write(bReply);
-                                outputStream.flush();
-                                
-                                try
-                                {
-                                    Thread.sleep(250);
-                                }
-                                catch (InterruptedException ie)
-                                {
-                                }
-                                
-                            }
-                            else if ( sB.toString().contains("[no]") )
-                            {
-                                // Reply for create avd:  'Do you wish to create a custom hardware profile? [no]'
-                                System.out.println("===Sending reply===");
-                                outputStream.write(bReplyDA);
-                                outputStream.flush();
-                                
-                                try
-                                {
-                                    Thread.sleep(250);
-                                }
-                                catch (InterruptedException ie)
-                                {
-                                }
-                            }
-                       }
-                    }
-                    else if ( errorBufferedReader.ready() )
-                    {
-                        sLine = errorBufferedReader.readLine();
-                        if ( sLine == null )
-                        {
-                            //System.out.println("sLine null, breaking..");
-                            break;
-                        }
-                        else
-                        {
-                           //System.out.println("(error): '"+sLine+"'");
-                           sB = new StringBuffer(sLine);
-                           sB.append(sZeroDZeroA);
-                           
-                            if ( (bHideOutput == false) || (sShowCommandResults.equals("true")) )
-                            {
-                                consoleTextArea.append(sB.toString());
-                            }
-                           
-                           sBOut.append(sB.toString());
-                        }
-                    }
-                    else
-                    {
-                        // Didn't get anything..
-						try
-						{
-							iExitVal = process.exitValue();
-							//System.out.println("iExitVal: "+iExitVal);
-							break;
-						}
-						catch (IllegalThreadStateException itse)
-						{
-						}
-                    }
-                }   // End while..
-            }
-            catch (IOException ioe)
-            {
-                System.out.println("Interactive Exception:");
-                ioe.printStackTrace();
-            }
-			finally
-			{
-				try
-				{
-				    if ( inputBufferedReader != null )
-				        inputBufferedReader.close();
-				    
-				    if ( inputStream != null )
-				        inputStream.close();
-				    
-				    if ( errorBufferedReader != null )
-				        errorBufferedReader.close();
-				    
-				    if ( errorStream != null )
-				        errorStream.close();
-				    
-				    if ( outputStream != null )
-				        outputStream.close();
-				}
-				catch (IOException ioe)
-				{
-				}
-			}
-
-			if ( process != null )
-			{
-			    process.destroy();
-			    process = null;
-			}
-			
-			commandResultS = sBOut.toString();
-            bInteractiveCommandFinished = true;
-        }
-    }   //}}}
-
-	//{{{   InteractiveTwoCommand
+	//{{{   InteractiveCommand
 	 @SuppressWarnings("unchecked")
-	class InteractiveTwoCommand extends Thread
+	class InteractiveCommand extends Thread
 	{
 		public void run()
 		{
@@ -1435,9 +1209,9 @@ public class SDKManager
             byte[] bZd = {(byte)0x0d};
             String sZeroD = new String(bZd);
             
-            byte[] bReply = {(byte)0x79, (byte)0x0d, (byte)0x0a};
+            byte[] bReply = {(byte)0x79, (byte)0x0d, (byte)0x0a};   // 'y'
             //String sReply = new String(bReply);
-            byte[] bReplyDA = {(byte)0x0d, (byte)0x0a};
+            byte[] bReplyDA = {(byte)0x0d, (byte)0x0a};     // Enter
             String sZeroDZeroA = new String(bReplyDA);
             //String sEnterReply = new String(bReplyA);
             
@@ -1541,7 +1315,29 @@ public class SDKManager
                         {
                             // Reply for accept license agreement
                             System.out.println("===Sending reply===");
-                            outputStream.write(bReply);
+/*                            
+                            if ( acceptLicensesCheckBox == null )
+                                System.out.println("acceptLicensesCheckBox null");
+                            else
+                                System.out.println("acceptLicensesCheckBox not null");
+/**/
+
+/*
+                            if ( finalAcceptLicensesCheckBox == null )
+                                System.out.println("finalAcceptLicensesCheckBox null");
+                            else
+                                System.out.println("finalAcceptLicensesCheckBox not null");
+/**/                            
+                            if ( ((acceptLicensesCheckBox != null) && (acceptLicensesCheckBox.isSelected())) ||
+                                ((finalAcceptLicensesCheckBox != null) && (finalAcceptLicensesCheckBox.isSelected())) )
+                            {
+                                outputStream.write(bReply);     // 'y'
+                            }
+                            else
+                            {
+                                outputStream.write(bReplyDA);   // Enter (N)
+                            }
+                            
                             outputStream.flush();
                             
                             try
@@ -1557,7 +1353,7 @@ public class SDKManager
                         {
                             // Reply for create avd:  'Do you wish to create a custom hardware profile? [no]'
                             System.out.println("===Sending reply===");
-                            outputStream.write(bReplyDA);
+                            outputStream.write(bReplyDA);   // Enter
                             outputStream.flush();
                             
                             try
@@ -1648,7 +1444,10 @@ public class SDKManager
 			process.destroy();
             
             commandResultS = sBOut.toString();
-            bInteractiveCommandFinished = true;
+            
+            if ( interactiveRequestLatch != null )
+                interactiveRequestLatch.countDown();
+            
 		}
 	}    //}}}
 
@@ -1813,7 +1612,10 @@ public class SDKManager
 			}
 			
 			commandResultS = sBOut.toString();
-            bCommandFinished = true;
+			
+            if ( commandRequestLatch != null )
+                commandRequestLatch.countDown();
+			
         }
     }   //}}}
 
@@ -2266,43 +2068,32 @@ public class SDKManager
 			    RefreshProperties();
 			    
 			    bHideOutput = true;
-                bSystemImagesThreadFinished = false;
+                operationRequestLatch = new CountDownLatch(1);
                 getSystemImagesBgThread = new GetSystemImagesBgThread();
                 getSystemImagesBgThread.start();
         
                 // Wait for Thread to finish..
-                while ( true )
+                try
                 {
-                    try
-                    {
-                        Thread.sleep(100);
-                    }
-                    catch (InterruptedException ie)
-                    {
-                    }
-        
-                    if ( bSystemImagesThreadFinished )
-                        break;
+                    operationRequestLatch.await();
+                }
+                catch (InterruptedException ie)
+                {
                 }
                 
+                
                 bHideOutput = true;
-                bDevicesThreadFinished = false;
+                operationRequestLatch = new CountDownLatch(1);
                 getDevicesBgThread = new GetDevicesBgThread();
                 getDevicesBgThread.start();
         
                 // Wait for Thread to finish..
-                while ( true )
+                try
                 {
-                    try
-                    {
-                        Thread.sleep(100);
-                    }
-                    catch (InterruptedException ie)
-                    {
-                    }
-        
-                    if ( bDevicesThreadFinished )
-                        break;
+                    operationRequestLatch.await();
+                }
+                catch (InterruptedException ie)
+                {
                 }
                 
                 bHideOutput = false;
@@ -2427,26 +2218,18 @@ public class SDKManager
                     sb.append("\n");
                 
                 bHideOutput = false;                
-                bInteractiveCommandFinished = false;
+                interactiveRequestLatch = new CountDownLatch(1);
                 sInternalCommand = sb.toString();
-                //interactiveCommand = new InteractiveCommand();
-                //interactiveCommand.start();
-                interactiveTwoCommand = new InteractiveTwoCommand();
-                interactiveTwoCommand.start();
+                interactiveCommand = new InteractiveCommand();
+                interactiveCommand.start();
                 
                 // Wait for Thread to finish..
-                while ( true )
+                try
                 {
-                    try
-                    {
-                        Thread.sleep(100);
-                    }
-                    catch (InterruptedException ie)
-                    {
-                    }
-    
-                    if ( bInteractiveCommandFinished )
-                        break;
+                    interactiveRequestLatch.await();
+                }
+                catch (InterruptedException ie)
+                {
                 }
 
 			    createFrame.setVisible(false);
@@ -2466,8 +2249,8 @@ public class SDKManager
 			else if ( ACCEPT_LICENSES_SUBMIT.equals(sActionCommand) )
 			{
 			    //System.out.println("ACCEPT_LICENSES_SUBMIT");
-			    StringBuffer sb;
-			    
+                StringBuffer sb;
+                
                 sb = new StringBuffer();
                 
                 if ( iOS == LINUX_MAC )
@@ -2488,6 +2271,7 @@ public class SDKManager
                     sb.append(sSDKPath);
                     
                     sb.append(";sdkmanager --licenses ");
+                    
 /*                    
                     if ( sUseHTTPForSDKManager.equals("true") )
                     {
@@ -2529,34 +2313,25 @@ public class SDKManager
                     sb.append(sSDKPath);
                     sb.append("\n");
                 }
-			    
+                
                 bHideOutput = false;
                 
-                bInteractiveCommandFinished = false;
+                interactiveRequestLatch = new CountDownLatch(1);
                 sInternalCommand = sb.toString();
-                //interactiveCommand = new InteractiveCommand();
-                //interactiveCommand.start();
-                interactiveTwoCommand = new InteractiveTwoCommand();
-                interactiveTwoCommand.start();
+                interactiveCommand = new InteractiveCommand();
+                interactiveCommand.start();
                 
                 // Wait for Thread to finish..
-                while ( true )
+                try
                 {
-                    try
-                    {
-                        Thread.sleep(100);
-                    }
-                    catch (InterruptedException ie)
-                    {
-                    }
-    
-                    if ( bInteractiveCommandFinished )
-                        break;
+                    interactiveRequestLatch.await();
+                }
+                catch (InterruptedException ie)
+                {
                 }
                 
-			    acceptLicensesFrame.setVisible(false);
-			    acceptLicensesFrame.dispose();
-
+                acceptLicensesFrame.setVisible(false);
+                acceptLicensesFrame.dispose();
 			}
 			else if ( ACCEPT_LICENSES_CANCEL.equals(sActionCommand) )
 			{
@@ -2575,23 +2350,17 @@ public class SDKManager
 			    RefreshProperties();
 			    
 			    bHideOutput = true;
-                bGetAVDsThreadFinished = false;
+                operationRequestLatch = new CountDownLatch(1);
                 getAVDsBgThread = new GetAVDsBgThread();
                 getAVDsBgThread.start();
         
                 // Wait for Thread to finish..
-                while ( true )
+                try
                 {
-                    try
-                    {
-                        Thread.sleep(100);
-                    }
-                    catch (InterruptedException ie)
-                    {
-                    }
-        
-                    if ( bGetAVDsThreadFinished )
-                        break;
+                    operationRequestLatch.await();
+                }
+                catch (InterruptedException ie)
+                {
                 }
                 
                 if ( (AVDsAr != null) && (AVDsAr.size() > 0) )
@@ -2785,25 +2554,21 @@ public class SDKManager
                 if ( bDoCommand )
                 {
                     bHideOutput = false;
-                    bCommandFinished = false;
+                    
+                    commandRequestLatch = new CountDownLatch(1);
                     sInternalCommand = sb.toString();
                     commandBgThread = new CommandBgThread();
                     commandBgThread.start();
             
                     // Wait for Thread to finish..
-                    while ( true )
+                    try
                     {
-                        try
-                        {
-                            Thread.sleep(100);
-                        }
-                        catch (InterruptedException ie)
-                        {
-                        }
-        
-                        if ( bCommandFinished )
-                            break;
+                        commandRequestLatch.await();
                     }
+                    catch (InterruptedException ie)
+                    {
+                    }
+                    
                 }
 
 			    avdsFrame.setVisible(false);
@@ -2823,23 +2588,18 @@ public class SDKManager
 			    
 			    bHideOutput = true;
 			    RefreshProperties();
-                bGetPackagesThreadFinished = false;
+			    
+                operationRequestLatch = new CountDownLatch(1);
                 getPackagesBgThread = new GetPackagesBgThread();
                 getPackagesBgThread.start();
         
                 // Wait for Thread to finish..
-                while ( true )
+                try
                 {
-                    try
-                    {
-                        Thread.sleep(100);
-                    }
-                    catch (InterruptedException ie)
-                    {
-                    }
-        
-                    if ( bGetPackagesThreadFinished )
-                        break;
+                    operationRequestLatch.await();
+                }
+                catch (InterruptedException ie)
+                {
                 }
                 
                 bHideOutput = false;
@@ -2869,6 +2629,7 @@ public class SDKManager
 			    boolean bUninstallSelected = false;
 			    boolean bUpdateSelected = false;
 			    boolean bDoChannels = true;
+			    boolean bDoUpdate = true;
 			    
                 sb = new StringBuffer();
                 
@@ -2913,37 +2674,39 @@ public class SDKManager
                     sb.append("&&sdkmanager ");
                 }
                 
-                bAcceptLicensesSelected = acceptLicensesCheckBox.isSelected();
-                
-                bUninstallSelected = uninstallCheckBox.isSelected();
-                if ( bUninstallSelected )
-                {
-                    sb.append("--uninstall ");
-                    bDoChannels = false;
-                }
-                
-                if ( (iSelAr != null) && (iSelAr.length > 0) )
-                {
-                    model = packageJList.getModel();
-               
-                    for ( int iJ = 0; iJ < iSelAr.length; iJ++ )
-                    {
-                        sImage = (String)model.getElementAt(iSelAr[iJ]);
-                        //System.out.println("sImage: '"+sImage+"'");
-                        
-                        sb.append('"');
-                        sb.append(sImage);
-                        sb.append('"');
-                        sb.append(" ");
-                    }
-                }
+                //bAcceptLicensesSelected = acceptLicensesCheckBox.isSelected();
                 
                 bUpdateSelected = updateCheckBox.isSelected();
                 if ( bUpdateSelected )
                 {
                     sb.append("--update ");
                 }
-
+                else
+                {
+                    bUninstallSelected = uninstallCheckBox.isSelected();
+                    if ( bUninstallSelected )
+                    {
+                        sb.append("--uninstall ");
+                        bDoChannels = false;
+                    }
+                    
+                    if ( (iSelAr != null) && (iSelAr.length > 0) )
+                    {
+                        model = packageJList.getModel();
+                   
+                        for ( int iJ = 0; iJ < iSelAr.length; iJ++ )
+                        {
+                            sImage = (String)model.getElementAt(iSelAr[iJ]);
+                            //System.out.println("sImage: '"+sImage+"'");
+                            
+                            sb.append('"');
+                            sb.append(sImage);
+                            sb.append('"');
+                            sb.append(" ");
+                        }
+                    }
+                }
+                
 /*
                 if ( sUseHTTPForSDKManager.equals("true") )
                 {
@@ -2970,26 +2733,18 @@ public class SDKManager
                     sb.append("\n");
 
                 bHideOutput = false;
-                bInteractiveCommandFinished = false;
+                interactiveRequestLatch = new CountDownLatch(1);
                 sInternalCommand = sb.toString();
-                //interactiveCommand = new InteractiveCommand();
-                //interactiveCommand.start();
-                interactiveTwoCommand = new InteractiveTwoCommand();
-                interactiveTwoCommand.start();
+                interactiveCommand = new InteractiveCommand();
+                interactiveCommand.start();
                 
                 // Wait for Thread to finish..
-                while ( true )
+                try
                 {
-                    try
-                    {
-                        Thread.sleep(100);
-                    }
-                    catch (InterruptedException ie)
-                    {
-                    }
-    
-                    if ( bInteractiveCommandFinished )
-                        break;
+                    interactiveRequestLatch.await();
+                }
+                catch (InterruptedException ie)
+                {
                 }
 
 			    packageFrame.setVisible(false);

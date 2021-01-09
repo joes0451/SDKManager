@@ -3,16 +3,15 @@ SDK Manager lets you manage the Android SDK that you would normally
 use 'sdkmanager' and 'avdmanager' to manage packages, create and
 launch AVDs.
 
+Go into config.properties and fill in your paths to Java
+and the SDK that you want to manage.
+
 The biggest potential issue that can happen is that your firewall
 can block the execution of the 'sdkmanager' and 'avdmanager' commands
 and you'll get partial or no results.
 
 You can try to fix this by temporarily turning off your firewall,
 to see if that fixes it, or by trying to set your firewall to not block it.
-
-
-Go into config.properties and fill in your paths to Java
-and the SDK that you want to manage.
 
 It can interact with the SDK that Android Studio uses but it is
 recommended to use Android Studio to manage that.
@@ -24,11 +23,13 @@ The ones in gold are packages that are installed and that an update is available
 
 It is recommended that you only install up to two packages at a time.
 
+*****************************************************************
 When you have finished adding any packages, always select:
-Manage SDK->Accept Licenses
+Manage SDK->Accept Licenses     and check the 'Accept Licenses' checkbox
 to be sure that all your licenses have been accepted.
+*****************************************************************
 
-For listing and installing packages, you can choose the
+For listing, installing and updating packages, you can choose the
 Channel source in config.properties.
 
 In order for the AVDs to work, you should look over the "system-images.."
@@ -43,6 +44,10 @@ it will do an Enter for the default choice for the:
 
 prompt.
 
+
+SDK Manager 1.0.2:
+    Fixed Accept, and made some other improvements.
+    
 
 Please let me know of any issues you have so that
 I can try to fix it.
