@@ -158,7 +158,6 @@ public class SDKManager
     static volatile String sInternalCommand;
     static volatile String sTest;
     static volatile String sToolsDir;
-    static volatile String sUseHTTPForSDKManager;
     static volatile String sShowCommandResults;
     static volatile String sPackageChannel;
     static volatile String sADV_BasedOn;
@@ -166,7 +165,6 @@ public class SDKManager
     static volatile boolean bBreakOut;
     static volatile boolean bIncludeObsolete;
     static volatile boolean bTextAreaInit;
-    //static volatile boolean bAcceptLicensesSelected;
     static volatile boolean bHideOutput;
     static volatile boolean bUpdateSelected;
     
@@ -215,6 +213,9 @@ public class SDKManager
 	private GetPackagesBgThread getPackagesBgThread;
 	private GetAVDsBgThread getAVDsBgThread;
 	private InteractiveCommand interactiveCommand;
+	private CreateThread createThread;
+	private AVDsThread aVDsThread;
+    private PackagesThread packagesThread;
     
     //}}}
      
@@ -504,7 +505,7 @@ public class SDKManager
 			{
 			    sb.append("cd ");
 				//sb.append("SET PATH=");
-				sb.append(sSDKPath);        // Like: "C:/android-sdk-wind"
+				sb.append(sSDKPath);
                 sb.append("/");
                 sb.append(sToolsDir);
                 sb.append("/bin");
@@ -583,6 +584,164 @@ public class SDKManager
 		}
 	 }    //}}}
 
+    //{{{   AVDsThread
+    class AVDsThread extends Thread
+    {
+        public void run()
+        {
+            AVDInfo aVDInfo;
+            int iSz = 0;
+            int iLength = 0;
+            String[] tSa;
+            String sPath = "";
+            
+            RefreshProperties();
+            
+            bHideOutput = true;
+            operationRequestLatch = new CountDownLatch(1);
+            getAVDsBgThread = new GetAVDsBgThread();
+            getAVDsBgThread.start();
+        
+            // Wait for Thread to finish..
+            try
+            {
+                operationRequestLatch.await();
+            }
+            catch (InterruptedException ie)
+            {
+            }
+            
+            if ( (AVDsAr != null) && (AVDsAr.size() > 0) )
+            {
+                iAdvSelectedIndex = 0;
+        
+                avdTextArea = new JTextArea();
+                avdTextArea.setRows(4);
+                avdTextArea.setColumns(5);
+                avdTextArea.setLineWrap(true);
+                avdTextArea.setEditable(false);
+                
+                avdsFrame = new JFrame();
+                avdsFrame.setLayout(new BorderLayout());		
+                avdsFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+                avdsFrame.setTitle("AVDs");
+        
+                avdScrollPane = new JScrollPane();
+                
+                iSz = AVDsAr.size();
+                tSa = new String[iSz];
+                for ( int iJ = 0; iJ < AVDsAr.size(); iJ++ )
+                {
+                    aVDInfo = (AVDInfo)AVDsAr.get(iJ);
+                    sPath = aVDInfo.sPath;
+                    iLength = sPath.length();
+                    if ( iLength > iLongest )
+                        iLongest = iLength;
+                        
+                    tSa[iJ] = aVDInfo.sName;
+                }
+                
+                avdJList = new JList(tSa);
+                avdJList.setVisibleRowCount(5);
+                avdJList.addListSelectionListener(createSelectionListener);
+                avdJList.setSelectedIndex(0);
+                
+                avdScrollPane.getViewport().setView(avdJList);
+        
+                bHideOutput = false;
+                AVDsDialog();
+            }
+            else
+            {
+                // No ADVs found, put up Dialog..
+                JOptionPane.showMessageDialog(
+                    mainJFrame,
+                    "No AVDs found.",
+                    "AVDs",
+                    JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }    //}}}
+
+    //{{{   PackagesThread	 
+    class PackagesThread extends Thread
+    {
+        public void run()
+        {
+            bHideOutput = true;
+            RefreshProperties();
+            
+            operationRequestLatch = new CountDownLatch(1);
+            getPackagesBgThread = new GetPackagesBgThread();
+            getPackagesBgThread.start();
+        
+            // Wait for Thread to finish..
+            try
+            {
+                operationRequestLatch.await();
+            }
+            catch (InterruptedException ie)
+            {
+            }
+            
+            bHideOutput = false;
+            
+            if ( (PackageAr != null) && (PackageAr.size() > 0) )
+            {
+                packageDialog();
+            }
+            else
+            {
+                // No Packages found, put up Dialog..
+                JOptionPane.showMessageDialog(
+                    mainJFrame,
+                    "No Packages found.\nYour firewall may be blocking commands from running.",
+                    "Packages",
+                    JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }    //}}}
+
+    //{{{   CreateThread
+    class CreateThread extends Thread
+    {
+        public void run()
+        {
+            RefreshProperties();
+            
+            bHideOutput = true;
+            operationRequestLatch = new CountDownLatch(1);
+            getSystemImagesBgThread = new GetSystemImagesBgThread();
+            getSystemImagesBgThread.start();
+        
+            // Wait for Thread to finish..
+            try
+            {
+                operationRequestLatch.await();
+            }
+            catch (InterruptedException ie)
+            {
+            }
+            
+            bHideOutput = true;
+            operationRequestLatch = new CountDownLatch(1);
+            getDevicesBgThread = new GetDevicesBgThread();
+            getDevicesBgThread.start();
+        
+            // Wait for Thread to finish..
+            try
+            {
+                operationRequestLatch.await();
+            }
+            catch (InterruptedException ie)
+            {
+            }
+            
+            bHideOutput = false;
+            createAVD();
+        }
+    }    //}}}
+	 
 	//{{{   GetPackagesBgThread
 	 @SuppressWarnings("unchecked")
 	 class GetPackagesBgThread extends Thread
@@ -629,12 +788,7 @@ public class SDKManager
 				sb.append(sSDKPath);
                 
                 sb.append(";sdkmanager --list ");
-/*                
-				if ( sUseHTTPForSDKManager.equals("true") )
-				{
-				    sb.append("--no_https ");
-				}
-/**/                
+                
 				if ( sIncludeObsolete.equals("true") )
 				{
 				    sb.append("--include_obsolete ");
@@ -657,7 +811,7 @@ public class SDKManager
 			{
 			    sb.append("cd ");
 				//sb.append("SET PATH=");
-				sb.append(sSDKPath);        // Like: "C:/android-sdk-wind"
+				sb.append(sSDKPath);
                 sb.append("/");
                 sb.append(sToolsDir);
                 sb.append("/bin");
@@ -675,13 +829,6 @@ public class SDKManager
 				
 				sb.append("&&sdkmanager --list ");
 
-                
-/*				
-				if ( sUseHTTPForSDKManager.equals("true") )
-				{
-				    sb.append("--no_https ");
-				}
-/**/				
 				if ( sIncludeObsolete.equals("true") )
 				{
 				    sb.append("--include_obsolete ");
@@ -886,12 +1033,6 @@ public class SDKManager
 				sb.append(sSDKPath);
                 
                 sb.append(";sdkmanager --list ");
-/*                
-				if ( sUseHTTPForSDKManager.equals("true") )
-				{
-				    sb.append("--no_https ");
-				}
-/**/
 
                 sb.append("--sdk_root=");
                 sb.append(sSDKPath);
@@ -916,12 +1057,6 @@ public class SDKManager
                 sb.append(sSDKPath); 
 				
 				sb.append("&&sdkmanager --list ");
-/*				
-				if ( sUseHTTPForSDKManager.equals("true") )
-				{
-				    sb.append("--no_https ");
-				}
-/**/
 
 				sb.append("--sdk_root=");
 				sb.append(sSDKPath);
@@ -941,8 +1076,8 @@ public class SDKManager
             catch (InterruptedException ie)
             {
             }
-			
-/*		    
+
+/*			
 			if ( commandResultS == null )
 				System.out.println("commandResultS null");
 			else
@@ -1006,7 +1141,6 @@ public class SDKManager
 			sSDKPath = processPath(prop.getProperty("android_sdk_path"));
 			sJavaPath = processPath(prop.getProperty("java_path"));
 			sIncludeObsolete = processPath(prop.getProperty("include_obsolete"));
-			//sUseHTTPForSDKManager = prop.getProperty("use_http_for_sdkmanager"));
 			sShowCommandResults = processPath(prop.getProperty("show_command_results"));
 			sPackageChannel = processPath(prop.getProperty("package_channel"));
 			
@@ -1094,7 +1228,6 @@ public class SDKManager
 		// Use BorderLayout..
 		mainPanel = new JPanel();
 		mainPanel.setLayout(new BorderLayout());
-		//mainPanel.addComponentListener(componentListener);
 
 		GridBagLayout gridbag = new GridBagLayout();
 		
@@ -1171,7 +1304,7 @@ public class SDKManager
 		statusBar.setLayout(gridbag);
 		GridBagConstraints gbc = new GridBagConstraints();
 		
-		statusLabel = new JLabel(" ");			// <-- (Set)
+		statusLabel = new JLabel(" ");
 		statusLabel.setBorder(loweredBevel);
 
 		gbc = new GridBagConstraints();
@@ -2063,48 +2196,40 @@ public class SDKManager
 			String sT = "";
 			//System.out.println("sActionCommand: '"+sActionCommand+"'");
 			
+            // Refresh 'tools' directory..		
+            StringBuffer sB = new StringBuffer();
+            sB.append(sSDKPath);
+            sB.append("/tools");
+            //System.out.println("(tools)sB.toString(): '"+sB.toString()+"'");
+            File tFile = new File(sB.toString());
+            if ( tFile.exists() )
+            {
+                //System.out.println("tools exists");
+                sToolsDir = "tools";
+            }
+            else
+            {
+                sB = new StringBuffer();
+                sB.append(sSDKPath);
+                sB.append("/cmdline-tools");
+                //System.out.println("(cmdline-tools)sB.toString(): '"+sB.toString()+"'");
+                tFile = new File(sB.toString());
+                if ( tFile.exists() )
+                {
+                    sToolsDir = "cmdline-tools";
+                }
+            }
+			
 			if ( CREATE_ADV.equals(sActionCommand) )
 			{
-			    RefreshProperties();
-			    
-			    bHideOutput = true;
-                operationRequestLatch = new CountDownLatch(1);
-                getSystemImagesBgThread = new GetSystemImagesBgThread();
-                getSystemImagesBgThread.start();
-        
-                // Wait for Thread to finish..
-                try
-                {
-                    operationRequestLatch.await();
-                }
-                catch (InterruptedException ie)
-                {
-                }
-                
-                
-                bHideOutput = true;
-                operationRequestLatch = new CountDownLatch(1);
-                getDevicesBgThread = new GetDevicesBgThread();
-                getDevicesBgThread.start();
-        
-                // Wait for Thread to finish..
-                try
-                {
-                    operationRequestLatch.await();
-                }
-                catch (InterruptedException ie)
-                {
-                }
-                
-                bHideOutput = false;
-                createAVD();			    
+			    createThread = new CreateThread();
+			    createThread.start();
 			}
 			else if ( CREATE_SUBMIT.equals(sActionCommand) )
 			{
 			    //System.out.println("CREATE_SUBMIT");
 			    
                 StringBuffer sb = new StringBuffer();
-                StringBuffer sB;
                 String sName = "";
                 String sSystemImage = "";
                 String sDevice = "";
@@ -2141,7 +2266,7 @@ public class SDKManager
                 {
                     sb.append("cd ");
                     //sb.append("SET PATH=");
-                    sb.append(sSDKPath);        // Like: "C:/android-sdk-wind"
+                    sb.append(sSDKPath);
                     sb.append("/");
                     sb.append(sToolsDir);
                     sb.append("/bin");
@@ -2216,7 +2341,8 @@ public class SDKManager
                 
                 if ( iOS == WINDOWS )
                     sb.append("\n");
-                
+
+                System.out.println("sb: '"+sb.toString()+"'");                
                 bHideOutput = false;                
                 interactiveRequestLatch = new CountDownLatch(1);
                 sInternalCommand = sb.toString();
@@ -2271,13 +2397,6 @@ public class SDKManager
                     sb.append(sSDKPath);
                     
                     sb.append(";sdkmanager --licenses ");
-                    
-/*                    
-                    if ( sUseHTTPForSDKManager.equals("true") )
-                    {
-                        sb.append("--no_https ");
-                    }
-/**/  
 
                     sb.append("--sdk_root=");
                     sb.append(sSDKPath);
@@ -2286,7 +2405,7 @@ public class SDKManager
                 {
                     sb.append("cd ");
                     //sb.append("SET PATH=");
-                    sb.append(sSDKPath);        // Like: "C:/android-sdk-wind"
+                    sb.append(sSDKPath);
                     sb.append("/");
                     sb.append(sToolsDir);
                     sb.append("/bin");
@@ -2302,12 +2421,6 @@ public class SDKManager
                     sb.append(sSDKPath); 
                     
                     sb.append("&&sdkmanager --licenses ");
-/*                   
-                    if ( sUseHTTPForSDKManager.equals("true") )
-                    {
-                        sb.append("--no_https ");
-                    }
-/**/
 
                     sb.append("--sdk_root=");
                     sb.append(sSDKPath);
@@ -2341,77 +2454,8 @@ public class SDKManager
 			else if ( AVDS.equals(sActionCommand) )
 			{
 			    //System.out.println("\nAVDS");
-			    AVDInfo aVDInfo;
-                int iSz = 0;
-                int iLength = 0;
-                String[] tSa;
-                String sPath = "";
-                
-			    RefreshProperties();
-			    
-			    bHideOutput = true;
-                operationRequestLatch = new CountDownLatch(1);
-                getAVDsBgThread = new GetAVDsBgThread();
-                getAVDsBgThread.start();
-        
-                // Wait for Thread to finish..
-                try
-                {
-                    operationRequestLatch.await();
-                }
-                catch (InterruptedException ie)
-                {
-                }
-                
-                if ( (AVDsAr != null) && (AVDsAr.size() > 0) )
-                {
-                    iAdvSelectedIndex = 0;
-    
-                    avdTextArea = new JTextArea();
-                    avdTextArea.setRows(4);
-                    avdTextArea.setColumns(5);
-                    avdTextArea.setLineWrap(true);
-                    avdTextArea.setEditable(false);
-                    
-                    avdsFrame = new JFrame();
-                    avdsFrame.setLayout(new BorderLayout());		
-                    avdsFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-                    avdsFrame.setTitle("AVDs");
-    
-                    avdScrollPane = new JScrollPane();
-                    
-                    iSz = AVDsAr.size();
-                    tSa = new String[iSz];
-                    for ( int iJ = 0; iJ < AVDsAr.size(); iJ++ )
-                    {
-                        aVDInfo = (AVDInfo)AVDsAr.get(iJ);
-                        sPath = aVDInfo.sPath;
-                        iLength = sPath.length();
-                        if ( iLength > iLongest )
-                            iLongest = iLength;
-                            
-                        tSa[iJ] = aVDInfo.sName;
-                    }
-                    
-                    avdJList = new JList(tSa);
-                    avdJList.setVisibleRowCount(5);
-                    avdJList.addListSelectionListener(createSelectionListener);
-                    avdJList.setSelectedIndex(0);
-                    
-                    avdScrollPane.getViewport().setView(avdJList);
-     
-                    bHideOutput = false;
-                    AVDsDialog();
-                }
-                else
-                {
-                    // No ADVs found, put up Dialog..
-                    JOptionPane.showMessageDialog(
-                        mainJFrame,
-                        "No AVDs found.",
-                        "AVDs",
-                        JOptionPane.ERROR_MESSAGE);
-                }
+			    aVDsThread = new AVDsThread();
+			    aVDsThread.start();
 			}
 			else if ( AVDS_SUBMIT.equals(sActionCommand) )
 			{
@@ -2440,10 +2484,18 @@ public class SDKManager
                     if ( iOS == LINUX_MAC )
                     {
                         sb.append("cd ");
-                        sb.append(sSDKPath);        // Like: "C:/android-sdk-wind"
+                        //sb.append("export PATH=${PATH}:");
+                        sb.append(sSDKPath);
                         sb.append("/");
                         sb.append(sToolsDir);
-                        
+
+/*                        
+                        sb.append(";export PATH=${PATH}:");
+                        sb.append(sSDKPath);
+                        sb.append("/");
+                        sb.append(sToolsDir);
+                        sb.append("/bin");
+/**/                        
                         sb.append(";export JAVA_HOME=");
                         sb.append(sJavaPath);
                         
@@ -2465,7 +2517,15 @@ public class SDKManager
                         sb.append("/");
                         sb.append(sToolsDir);
                         //sb.append(";%PATH%");
-                        
+
+/*                        
+                        sb.append("&&SET PATH=");
+                        sb.append(sSDKPath);
+                        sb.append("/");
+                        sb.append(sToolsDir);
+                        sb.append("/bin");
+                        //sb.append(";%PATH%");
+/**/                        
                         sb.append("&&SET ANDROID_HOME=");
                         sb.append(sSDKPath); 
                         
@@ -2549,8 +2609,9 @@ public class SDKManager
                     if ( iOS == WINDOWS )                    
                         sb.append("\n");
                 }
-             
-                //System.out.println("bDoCommand: "+bDoCommand);
+
+                System.out.println("sb: '"+sb.toString()+"'");
+                System.out.println("bDoCommand: "+bDoCommand);
                 if ( bDoCommand )
                 {
                     bHideOutput = false;
@@ -2583,40 +2644,8 @@ public class SDKManager
 			else if ( PACKAGES.equals(sActionCommand) )
 			{
 			    //System.out.println("\nPACKAGES");
-			    
-			    JMenuItem jMenuItem = (JMenuItem)e.getSource();
-			    
-			    bHideOutput = true;
-			    RefreshProperties();
-			    
-                operationRequestLatch = new CountDownLatch(1);
-                getPackagesBgThread = new GetPackagesBgThread();
-                getPackagesBgThread.start();
-        
-                // Wait for Thread to finish..
-                try
-                {
-                    operationRequestLatch.await();
-                }
-                catch (InterruptedException ie)
-                {
-                }
-                
-                bHideOutput = false;
-                
-                if ( (PackageAr != null) && (PackageAr.size() > 0) )
-                {
-                    packageDialog();
-                }
-                else
-                {
-                    // No Packages found, put up Dialog..
-                    JOptionPane.showMessageDialog(
-                        mainJFrame,
-                        "No Packages found.\nYour firewall may be blocking commands from running.",
-                        "Packages",
-                        JOptionPane.ERROR_MESSAGE);
-                }
+			    packagesThread = new PackagesThread();
+			    packagesThread.start();
 			}
 			else if ( PACKAGE_SUBMIT.equals(sActionCommand) )
 			{
@@ -2706,13 +2735,6 @@ public class SDKManager
                         }
                     }
                 }
-                
-/*
-                if ( sUseHTTPForSDKManager.equals("true") )
-                {
-                    sb.append("--no_https ");
-                }
-/**/
 
                 if ( bDoChannels )
                 {
@@ -2916,7 +2938,8 @@ public class SDKManager
 				sdkManager = new SDKManager();
 
 				mainJFrame = new JFrame();
-				mainJFrame.setContentPane(mainPanel);			
+				mainJFrame.setContentPane(mainPanel);	
+				mainJFrame.setResizable(false);
 				mainJFrame.pack();
 				mainJFrame.addWindowListener(windowListener);
 				mainJFrame.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
