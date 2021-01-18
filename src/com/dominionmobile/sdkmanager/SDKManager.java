@@ -167,6 +167,7 @@ public class SDKManager
     static volatile boolean bTextAreaInit;
     static volatile boolean bHideOutput;
     static volatile boolean bUpdateSelected;
+    static volatile boolean bPackages;
     
 	static volatile int iOS;
 	static volatile int iFontSize;
@@ -233,6 +234,7 @@ public class SDKManager
 			
 		bTextAreaInit = true;
 		bHideOutput = false;
+		bPackages = false;
    
 		createGui();
 		
@@ -668,6 +670,7 @@ public class SDKManager
     {
         public void run()
         {
+            //System.out.println("\nPackagesThread run()");
             bHideOutput = true;
             RefreshProperties();
             
@@ -755,6 +758,7 @@ public class SDKManager
 		    String sInstalled = "";
 		    String sUpdate = "";
 		    StringBuffer sB;
+		    boolean bFoundUpdates = false;
 		    int iLoc2 = 0;
 		    int iLoc3 = 0;
 		    int iLoc4 = 0;
@@ -793,7 +797,7 @@ public class SDKManager
 				{
 				    sb.append("--include_obsolete ");
 				}
-				
+
 				if ( sPackageChannel.equals("stable") )
 				    sb.append("--channel=0 ");
 				else if ( sPackageChannel.equals("beta") )
@@ -869,6 +873,7 @@ public class SDKManager
 			else
 				System.out.println("commandResultS: '"+commandResultS+"'");
 /**/
+
             if ( (commandResultS != null) && (commandResultS.length() > 0) )
             {
                 PackageAr = new ArrayList();
@@ -887,6 +892,7 @@ public class SDKManager
                 if ( iLoc4 != -1 )
                 {
                     //System.out.println("Found Available Updates:");
+                    bFoundUpdates = true;
                 }
                 else
                 {
@@ -958,36 +964,39 @@ public class SDKManager
                 }
                         
                 // Get available updates..
-                iLoc8 = iLoc4;
-                for ( int iX = 0; iX < 3; iX++ )
+                if ( bFoundUpdates )
                 {
-                    iLoc8 = commandResultS.indexOf(sStart, iLoc8);
-                    iLoc8 += 2;     // Next..
-                }
-                
-                iLoc7 = iLoc8;
-                for ( ; Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
-                iStart = iLoc7;
-                
-                while ( true )
-                {
-                    for ( ; ! Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
-                    sUpdate = commandResultS.substring(iStart, iLoc7);
-                    //System.out.println("sUpdate: '"+sUpdate+"'");
-                    UpdateAr.add((String)sUpdate);
-
-                    // Next..
-                    iLoc7 = commandResultS.indexOf(sStart, iLoc7);      // 0x0a 0x20 0x20
-                    if ( iLoc7 == -1 )
-                        break;
+                    iLoc8 = iLoc4;
+                    for ( int iX = 0; iX < 3; iX++ )
+                    {
+                        iLoc8 = commandResultS.indexOf(sStart, iLoc8);
+                        iLoc8 += 2;     // Next..
+                    }
                     
+                    iLoc7 = iLoc8;
                     for ( ; Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
-                    
-                    if ( iLoc7 >= commandResultS.length() )   // 'Available Updates:'
-                        break;
-
                     iStart = iLoc7;
-                }   // End while..
+                    
+                    while ( true )
+                    {
+                        for ( ; ! Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
+                        sUpdate = commandResultS.substring(iStart, iLoc7);
+                        //System.out.println("sUpdate: '"+sUpdate+"'");
+                        UpdateAr.add((String)sUpdate);
+    
+                        // Next..
+                        iLoc7 = commandResultS.indexOf(sStart, iLoc7);      // 0x0a 0x20 0x20
+                        if ( iLoc7 == -1 )
+                            break;
+                        
+                        for ( ; Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
+                        
+                        if ( iLoc7 >= commandResultS.length() )   // 'Available Updates:'
+                            break;
+    
+                        iStart = iLoc7;
+                    }   // End while..
+                }
             }
 
             //System.out.println("\nExiting GetPackagesBgThread");
@@ -1174,7 +1183,7 @@ public class SDKManager
             //Color green = new Color((int)0x7c, (int)0xfc, (int)0x00);   // LawnGreen
             Color green = new Color((int)0x7f, (int)0xff, (int)0x00);   // Chartreuse
             Color gold = new Color((int)0xff, (int)0xd7, (int)0x00);   // Gold
-            boolean bUpdateMatch;
+            boolean bUpdateMatch = false;
             
             Component c = super.getListCellRendererComponent(
                 list,
@@ -1185,6 +1194,7 @@ public class SDKManager
             
             //System.out.println("value.toString(): '"+value.toString()+"'");
             //System.out.println("index: "+index);
+            
 
             if ( (InstalledAr != null) && (InstalledAr.size() > 0) )
             {
@@ -1206,7 +1216,7 @@ public class SDKManager
                                 }
                             }
                         }
-                        
+
                         if ( bUpdateMatch )
                             c.setBackground(gold);
                         else
@@ -1326,7 +1336,7 @@ public class SDKManager
 	{
 		public void run()
 		{
-			//System.out.println("== InteractiveTwoCommand run() ==");
+			//System.out.println("== InteractiveCommand run() ==");
 			//System.out.println("sInternalCommand: '"+sInternalCommand+"'");
 		    
             ProcessBuilder processBuilder;
@@ -1343,10 +1353,8 @@ public class SDKManager
             String sZeroD = new String(bZd);
             
             byte[] bReply = {(byte)0x79, (byte)0x0d, (byte)0x0a};   // 'y'
-            //String sReply = new String(bReply);
             byte[] bReplyDA = {(byte)0x0d, (byte)0x0a};     // Enter
             String sZeroDZeroA = new String(bReplyDA);
-            //String sEnterReply = new String(bReplyA);
             
             int iBytesRead = 0;
             int iLoc2 = 0;
@@ -1700,15 +1708,15 @@ public class SDKManager
                     else
                     {
                         // Didn't get anything..
-						try
-						{
-							iExitVal = process.exitValue();
-							//System.out.println("iExitVal: "+iExitVal);
-							break;
-						}
-						catch (IllegalThreadStateException itse)
-						{
-						}
+                        try
+                        {
+                            iExitVal = process.exitValue();
+                            //System.out.println("iExitVal: "+iExitVal);
+                            break;
+                        }
+                        catch (IllegalThreadStateException itse)
+                        {
+                        }
                     }
                 }   // End while..
             }
@@ -2342,7 +2350,7 @@ public class SDKManager
                 if ( iOS == WINDOWS )
                     sb.append("\n");
 
-                System.out.println("sb: '"+sb.toString()+"'");                
+                //System.out.println("sb: '"+sb.toString()+"'");                
                 bHideOutput = false;                
                 interactiveRequestLatch = new CountDownLatch(1);
                 sInternalCommand = sb.toString();
@@ -2610,8 +2618,6 @@ public class SDKManager
                         sb.append("\n");
                 }
 
-                System.out.println("sb: '"+sb.toString()+"'");
-                System.out.println("bDoCommand: "+bDoCommand);
                 if ( bDoCommand )
                 {
                     bHideOutput = false;
@@ -2646,6 +2652,7 @@ public class SDKManager
 			    //System.out.println("\nPACKAGES");
 			    packagesThread = new PackagesThread();
 			    packagesThread.start();
+			    
 			}
 			else if ( PACKAGE_SUBMIT.equals(sActionCommand) )
 			{
@@ -2703,9 +2710,8 @@ public class SDKManager
                     sb.append("&&sdkmanager ");
                 }
                 
-                //bAcceptLicensesSelected = acceptLicensesCheckBox.isSelected();
-                
                 bUpdateSelected = updateCheckBox.isSelected();
+                //System.out.println("bUpdateSelected: "+bUpdateSelected);
                 if ( bUpdateSelected )
                 {
                     sb.append("--update ");
@@ -2735,7 +2741,8 @@ public class SDKManager
                         }
                     }
                 }
-
+                
+                //System.out.println("bDoChannels: "+bDoChannels);
                 if ( bDoChannels )
                 {
                     if ( sPackageChannel.equals("stable") )
@@ -2747,7 +2754,7 @@ public class SDKManager
                     else if ( sPackageChannel.equals("canary") )
                         sb.append("--channel=3 ");
                 }
-
+                
                 sb.append("--sdk_root=");
                 sb.append(sSDKPath);
                     

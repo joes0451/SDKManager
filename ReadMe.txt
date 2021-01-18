@@ -27,7 +27,7 @@ check "Accept licenses" and hit Submit.
 
 Then select a minimum of one of the platforms, like: 'platforms;android-29'.
 Then when finished select  Manage SDK -> Accept Licenses,
-check the "Accept licenses" chackbox and hit Submit.
+check the "Accept licenses" checkbox and hit Submit.
 
 This will ensure that many essential things, like the emulator
 and the 'platforms' directory, are properly set up and all the licenses are accepted.
@@ -48,6 +48,10 @@ The packages highlighted in green are packages that are currently installed.
 The ones in gold are packages that are installed and that an update is available for.
 
 It is recommended that you only install up to two packages at a time.
+
+If there are a large number of packages to update,
+or doing "Update all" has issues, it might be faster to manually
+do --update from the command line.
 
 *****************************************************************
 When you have finished adding any packages, always select:
@@ -71,12 +75,12 @@ it will do an Enter for the default choice for the:
 prompt.
 
 
-SDK Manager 1.0.2:
-    Fixed Accept, and made some other improvements.
-
 SDK Manager 1.0.3:
     Some minor improvements.
 
+SDK Manager 1.0.4:
+    Fixed the update available highlighting.
+    
 
 Please let me know of any issues you have so that
 I can try to fix it.

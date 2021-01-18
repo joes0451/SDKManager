@@ -4,11 +4,11 @@
 # Features:
 
 * Packages:
-* List, install, uninstall and Update packages.
+* List, install, uninstall and update packages.
 * Option to choose Channel.
 
 * AVDs:
-* Create, list, Start and Delete AVDs.
+* Create, list, start and delete AVDs.
 
 * After you check "Accept licenses" it will automatically
 * accept them.
