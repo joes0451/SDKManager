@@ -75,11 +75,12 @@ it will do an Enter for the default choice for the:
 prompt.
 
 
-SDK Manager 1.0.3:
-    Some minor improvements.
 
 SDK Manager 1.0.4:
     Fixed the update available highlighting.
+    
+SDK Manager 1.0.5:
+    Some minor improvements.
     
 
 Please let me know of any issues you have so that

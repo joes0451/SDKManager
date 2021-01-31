@@ -161,6 +161,7 @@ public class SDKManager
     static volatile String sShowCommandResults;
     static volatile String sPackageChannel;
     static volatile String sADV_BasedOn;
+    static volatile String sUseHTTPS;
     
     static volatile boolean bBreakOut;
     static volatile boolean bIncludeObsolete;
@@ -168,6 +169,7 @@ public class SDKManager
     static volatile boolean bHideOutput;
     static volatile boolean bUpdateSelected;
     static volatile boolean bPackages;
+    static volatile boolean bCommandFinished;
     
 	static volatile int iOS;
 	static volatile int iFontSize;
@@ -336,12 +338,30 @@ public class SDKManager
 				sb.append("list");
 				sb.append("\n");
 			}
-			
-			commandRequestLatch = new CountDownLatch(1);
+
+			bCommandFinished = false;			
+			//commandRequestLatch = new CountDownLatch(1);
 			sInternalCommand = sb.toString();
 			commandBgThread = new CommandBgThread();
 			commandBgThread.start();
-                
+
+            // Seems to need some more time..	
+            // Wait for Thread to finish..
+			while ( true )
+			{
+			    try
+			    {
+			        Thread.sleep(125);
+			    }
+			    catch (InterruptedException ie)
+			    {
+			    }
+			    
+			    if ( bCommandFinished )
+			        break;
+			}
+			
+/*                
 			// Wait for Thread to finish..
             try
             {
@@ -350,7 +370,7 @@ public class SDKManager
             catch (InterruptedException ie)
             {
             }
-			
+/**/			
 
 /*		    
 			if ( commandResultS == null )
@@ -797,6 +817,11 @@ public class SDKManager
 				{
 				    sb.append("--include_obsolete ");
 				}
+				
+				if ( sUseHTTPS.equals("false") )
+				{
+				    sb.append("--no_https ");
+				}
 
 				if ( sPackageChannel.equals("stable") )
 				    sb.append("--channel=0 ");
@@ -838,6 +863,11 @@ public class SDKManager
 				    sb.append("--include_obsolete ");
 				}
 				
+				if ( sUseHTTPS.equals("false") )
+				{
+				    sb.append("--no_https ");
+				}
+				
 				if ( sPackageChannel.equals("stable") )
 				    sb.append("--channel=0 ");
 				else if ( sPackageChannel.equals("beta") )
@@ -853,11 +883,30 @@ public class SDKManager
 				sb.append("\n");
 			}
 			
-			commandRequestLatch = new CountDownLatch(1);
+			//commandRequestLatch = new CountDownLatch(1);
+			bCommandFinished = false;
 			sInternalCommand = sb.toString();
 			commandBgThread = new CommandBgThread();
 			commandBgThread.start();
 
+			
+            // Give it some more time..	
+            // Wait for Thread to finish..
+			while ( true )
+			{
+			    try
+			    {
+			        Thread.sleep(125);
+			    }
+			    catch (InterruptedException ie)
+			    {
+			    }
+			    
+			    if ( bCommandFinished )
+			        break;
+			}
+
+/*
 			// Wait for Thread to finish..
             try
             {
@@ -866,6 +915,7 @@ public class SDKManager
             catch (InterruptedException ie)
             {
             }
+/**/
 
 /*
 			if ( commandResultS == null )
@@ -1042,6 +1092,11 @@ public class SDKManager
 				sb.append(sSDKPath);
                 
                 sb.append(";sdkmanager --list ");
+                
+				if ( sUseHTTPS.equals("false") )
+				{
+				    sb.append("--no_https ");
+				}
 
                 sb.append("--sdk_root=");
                 sb.append(sSDKPath);
@@ -1067,6 +1122,11 @@ public class SDKManager
 				
 				sb.append("&&sdkmanager --list ");
 
+				if ( sUseHTTPS.equals("false") )
+				{
+				    sb.append("--no_https ");
+				}
+				
 				sb.append("--sdk_root=");
 				sb.append(sSDKPath);
 				sb.append("\n");
@@ -1152,6 +1212,7 @@ public class SDKManager
 			sIncludeObsolete = processPath(prop.getProperty("include_obsolete"));
 			sShowCommandResults = processPath(prop.getProperty("show_command_results"));
 			sPackageChannel = processPath(prop.getProperty("package_channel"));
+			sUseHTTPS = processPath(prop.getProperty("use_https"));
 			
 		}
 		catch (IOException ioe)
@@ -1754,6 +1815,8 @@ public class SDKManager
 			
 			commandResultS = sBOut.toString();
 			
+			bCommandFinished = true;
+			
             if ( commandRequestLatch != null )
                 commandRequestLatch.countDown();
 			
@@ -1988,7 +2051,7 @@ public class SDKManager
 
 		iGridY++;
 
-		updateCheckBox = new JCheckBox("  Update all");
+		updateCheckBox = new JCheckBox("  Update all installed packages");
 		updateCheckBox.setSelected(false);
 		
 		gbc.gridx = 1;
@@ -2236,12 +2299,10 @@ public class SDKManager
 			else if ( CREATE_SUBMIT.equals(sActionCommand) )
 			{
 			    //System.out.println("CREATE_SUBMIT");
-			    
                 StringBuffer sb = new StringBuffer();
                 String sName = "";
                 String sSystemImage = "";
                 String sDevice = "";
-                //String sT = "";
                 int[] iAr;
                 int iLoc2 = 0;
                 boolean bIsSelected;
@@ -2405,6 +2466,11 @@ public class SDKManager
                     sb.append(sSDKPath);
                     
                     sb.append(";sdkmanager --licenses ");
+                    
+                    if ( sUseHTTPS.equals("false") )
+                    {
+                        sb.append("--no_https ");
+                    }
 
                     sb.append("--sdk_root=");
                     sb.append(sSDKPath);
@@ -2430,6 +2496,11 @@ public class SDKManager
                     
                     sb.append("&&sdkmanager --licenses ");
 
+                    if ( sUseHTTPS.equals("false") )
+                    {
+                        sb.append("--no_https ");
+                    }
+                
                     sb.append("--sdk_root=");
                     sb.append(sSDKPath);
                     sb.append("\n");
@@ -2741,6 +2812,11 @@ public class SDKManager
                         }
                     }
                 }
+                
+				if ( sUseHTTPS.equals("false") )
+				{
+				    sb.append("--no_https ");
+				}
                 
                 //System.out.println("bDoChannels: "+bDoChannels);
                 if ( bDoChannels )
