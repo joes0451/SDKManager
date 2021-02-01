@@ -170,6 +170,7 @@ public class SDKManager
     static volatile boolean bUpdateSelected;
     static volatile boolean bPackages;
     static volatile boolean bCommandFinished;
+    static volatile boolean bGetAVDFinished;
     
 	static volatile int iOS;
 	static volatile int iFontSize;
@@ -339,6 +340,7 @@ public class SDKManager
 				sb.append("\n");
 			}
 
+			//System.out.println("sb: '"+sb.toString()+"'");
 			bCommandFinished = false;			
 			//commandRequestLatch = new CountDownLatch(1);
 			sInternalCommand = sb.toString();
@@ -485,6 +487,7 @@ public class SDKManager
             if ( operationRequestLatch != null )
                 operationRequestLatch.countDown();
             
+            bGetAVDFinished = true;
 		}
 	 }    //}}}
 	 
@@ -620,10 +623,26 @@ public class SDKManager
             RefreshProperties();
             
             bHideOutput = true;
-            operationRequestLatch = new CountDownLatch(1);
+            bGetAVDFinished = false;
+            //operationRequestLatch = new CountDownLatch(1);
             getAVDsBgThread = new GetAVDsBgThread();
             getAVDsBgThread.start();
-        
+
+            while ( true )
+            {
+                try
+                {
+                    Thread.sleep(125);
+                }
+                catch (InterruptedException ie)
+                {
+                }
+                
+                if ( bGetAVDFinished )
+                    break;
+            }
+            
+/*            
             // Wait for Thread to finish..
             try
             {
@@ -632,7 +651,8 @@ public class SDKManager
             catch (InterruptedException ie)
             {
             }
-            
+/**/
+
             if ( (AVDsAr != null) && (AVDsAr.size() > 0) )
             {
                 iAdvSelectedIndex = 0;
@@ -2693,6 +2713,7 @@ public class SDKManager
                 {
                     bHideOutput = false;
                     
+                    //System.out.println("sb: '"+sb.toString()+"'");
                     commandRequestLatch = new CountDownLatch(1);
                     sInternalCommand = sb.toString();
                     commandBgThread = new CommandBgThread();
