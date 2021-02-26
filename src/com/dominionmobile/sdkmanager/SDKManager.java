@@ -803,6 +803,7 @@ public class SDKManager
 			StringBuffer sB;
 			boolean bFoundUpdates = false;
 			boolean bAddEmulator = false;
+			boolean bDoAdd = false;
 			int iLoc2 = 0;
 			int iLoc3 = 0;
 			int iLoc4 = 0;
@@ -890,12 +891,17 @@ public class SDKManager
 				sb.append(sSDKPath);
 
 				sb.append("&&sdkmanager --list ");
-				
+/*				
                 if ( (sIncludeObsolete != null) && (sIncludeObsolete.length() > 0) )
                 {				    
                     if (sIncludeObsolete.equals("true"))
                         sb.append("--include_obsolete ");
                 }
+/**/ 
+
+                // We always include Obsolete to make managing
+                // things easier..
+                sb.append("--include_obsolete ");
 				
 				if (sUseHTTPS.equals("false"))
 				{
@@ -971,7 +977,6 @@ public class SDKManager
 				iLoc14 = commandResultS.indexOf("Installed Obsolete Packages:");
 				iLoc5 = commandResultS.indexOf("Available Packages:");
 				iLoc10 = commandResultS.indexOf("Available Obsolete Packages:");
-				
 				iLoc4 = commandResultS.indexOf("Available Updates:");
 				if (iLoc4 != -1)
 					bFoundUpdates = true;
@@ -1045,8 +1050,12 @@ public class SDKManager
                         //System.out.println("(TOP)"+commandResultS.substring(iLoc7, iLoc7 + 10));
                         for (; !Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++);
                         sInstalled = commandResultS.substring(iStart, iLoc7);
-                        //System.out.println("sInstalled: '"+sInstalled+"'");
+                        //System.out.println("(Obsolete)sInstalled: '"+sInstalled+"'");
+                        
                         InstalledAr.add((String)sInstalled);
+                        
+                        if ( (sIncludeObsolete != null) && (sIncludeObsolete.equals("false")) )
+                            PackageAr.add((String)sInstalled);
     
                         // Next..
                         iLoc7 = commandResultS.indexOf(sStart, iLoc7); // 0x0a 0x20 0x20
@@ -1072,26 +1081,33 @@ public class SDKManager
 						iStart = iLoc7;
 						while (true)
 						{
+						    bDoAdd = true;
 						    //System.out.println("(TOP)"+commandResultS.substring(iLoc7, iLoc7 + 10));
-						    if ( (iLoc10 != -1) && (iLoc7 >= iLoc10) )    // iLoc10 @  Available Obsolete Packages:
-						    {
-						        // Skip between Available Obsolete Packages:..
-						        iLoc12 = commandResultS.indexOf("Description", iLoc7);
-						        if ( iLoc12 != -1 )
-						        {
-						            while ( true )
-						            {
-						                iLoc12 = commandResultS.indexOf(sStart, iLoc12);
-						                if ( Character.isLetter(commandResultS.charAt(iLoc12 + 3)) )
-						                    break;
-						                
-						                iLoc12++;    // Next..
-						            }
-						            
-						            iLoc7 = iLoc12 + 3;
-						            iStart = iLoc7;
-						        }
-						    }
+						    // Only show Obsolete Packages if actually selected..
+                            if ( (iLoc10 != -1) && (iLoc7 >= iLoc10) )    // iLoc10 @  Available Obsolete Packages:
+                            {
+                                if ( (sIncludeObsolete != null) && (sIncludeObsolete.equals("true")) )
+                                {
+                                    // Skip between Available Obsolete Packages:..
+                                    iLoc12 = commandResultS.indexOf("Description", iLoc7);
+                                    if ( iLoc12 != -1 )
+                                    {
+                                        while ( true )
+                                        {
+                                            iLoc12 = commandResultS.indexOf(sStart, iLoc12);
+                                            if ( Character.isLetter(commandResultS.charAt(iLoc12 + 3)) )
+                                                break;
+                                            
+                                            iLoc12++;    // Next..
+                                        }
+                                        
+                                        iLoc7 = iLoc12 + 3;
+                                        iStart = iLoc7;
+                                    }
+                                }
+                                else
+                                    bDoAdd = false;
+                            }
 						    
 							for (; !Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++);
 							sPackage = commandResultS.substring(iStart, iLoc7);
@@ -1105,8 +1121,9 @@ public class SDKManager
 							        bAddEmulator = false;    // Reset..
 							    }
 							}
-							
-							PackageAr.add((String) sPackage);
+
+                            if ( bDoAdd )							
+                                PackageAr.add((String) sPackage);
 
 							// Next..
 							iLoc7 = commandResultS.indexOf(sStart, iLoc7); // 0x0a 0x20 0x20
@@ -2121,7 +2138,7 @@ public class SDKManager
 	@SuppressWarnings("unchecked")
 	public void packageDialog()
 	{
-		//System.out.println("packageDialog()");
+		//System.out.println("\npackageDialog()");
 		packageFrame = new JFrame();
 		packageFrame.setLayout(new BorderLayout());
 		packageFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);

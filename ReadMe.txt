@@ -27,7 +27,7 @@ that you'd like to use, like 'platforms;android-30', check "Accept licenses"
 and hit Submit.
 
 Then select the highest 'build-tools;..' level that you'd like to use,
-like 'build-tools;31.0.0-rc1' check "Accept licenses" and hit Submit.
+like 'build-tools;31.0.0-rc1', check "Accept licenses" and hit Submit.
 
 Then select 'platform-tools', check "Accept licenses" and hit Submit.
 
