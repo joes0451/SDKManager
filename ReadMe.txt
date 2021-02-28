@@ -88,9 +88,6 @@ prompt.
 
 
 
-SDK Manager 1.0.4:
-    Fixed the update available highlighting.
-    
 SDK Manager 1.0.5:
     Some minor improvements.
     
@@ -100,7 +97,11 @@ SDK Manager 1.0.7:
     Fixed showing 'emulator' in Package list.
     Other improvements.
     
-
+SDK Manager 1.0.8:
+    Tried to fix issue with not finding AVDs.
+    Added -memory option.
+    
+    
 Please let me know of any issues you have so that
 I can try to fix it.
 

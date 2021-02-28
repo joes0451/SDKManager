@@ -105,7 +105,7 @@ import java.util.ArrayList;
 
 public class SDKManager
 {
-	//{{{ Data
+	//{{{    Data
 
 	private static JFrame mainJFrame;
 	private static JFrame frame;
@@ -166,6 +166,7 @@ public class SDKManager
 	static volatile String sEngine;
 	static volatile String sKernel;
 	static volatile String sQuickBoot;
+	static volatile String sMemory;
 
 	static volatile boolean bBreakOut;
 	static volatile boolean bIncludeObsolete;
@@ -228,7 +229,7 @@ public class SDKManager
 
 	//}}}
 
-	//{{{  SDKManager() constructor
+	//{{{    SDKManager() constructor
 	public SDKManager()
 	{
 		// Determine OS..
@@ -639,12 +640,12 @@ public class SDKManager
 			{
 				try
 				{
-					Thread.sleep(125);
+					Thread.sleep(500);
 				}
 				catch (InterruptedException ie)
 				{}
 
-				if (bGetAVDFinished)
+				if ( bGetAVDFinished )
 					break;
 			}
 
@@ -1347,6 +1348,7 @@ public class SDKManager
 			sEngine = processPath(prop.getProperty("engine"));
 			sKernel = processPath(prop.getProperty("kernel"));
 			sQuickBoot = processPath(prop.getProperty("quick_boot"));
+			sMemory = processPath(prop.getProperty("memory"));
 		}
 		catch (IOException ioe)
 		{
@@ -2707,6 +2709,7 @@ public class SDKManager
 				int iSz;
 				int iLoc2 = 0;
 				int iLoc3 = 0;
+				int iMemorySize = 0;
 				int[] iAr;
 				boolean bIsStartSelected;
 				boolean bIsDeleteSelected;
@@ -2871,6 +2874,32 @@ public class SDKManager
 					{
 					    if ( sUseForce32Bit.equals("true") )
 					        sb.append(" -force-32bit ");
+					}
+					
+					if ( (sMemory != null) && (sMemory.length() > 0) )
+					{
+					    try
+					    {
+					        sMemory = sMemory.trim();
+					        iMemorySize = Integer.parseInt(sMemory);
+					        if ( (iMemorySize > 4096) || (iMemorySize < 128) )
+					        {
+                                // Illegal Memory size, put up Dialog..
+                                JOptionPane.showMessageDialog(
+                                    mainJFrame,
+                                    "Memory size not in valid range.",
+                                    "Memory",
+                                    JOptionPane.ERROR_MESSAGE);
+					        }
+					        else
+					        {
+					            sb.append(" -memory ");
+					            sb.append(sMemory);
+					        }
+					    }
+					    catch (NumberFormatException nfe)
+					    {
+					    }
 					}
 
 					if ( (sGPUMode != null) && (sGPUMode.length() > 0) )
