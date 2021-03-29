@@ -1,5 +1,5 @@
 
-## A Manager for the Android SDK.  Wraps the Android SDK's 'sdkmanager' and 'avdmanager'.
+## A Manager for the Android SDK.  Wraps the Android SDK's 'sdkmanager', 'avdmanager' and 'emulator'.
 
 # Features:
 
@@ -9,6 +9,7 @@
 
 * AVDs:
 * Create, list, start and delete AVDs.
+* Many options to launch.
 
 * After you check "Accept licenses" it will automatically
 * accept them.

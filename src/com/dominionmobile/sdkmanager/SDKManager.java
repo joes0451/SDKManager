@@ -105,7 +105,7 @@ import java.util.ArrayList;
 
 public class SDKManager
 {
-	//{{{    Data
+	//{{{   Data
 
 	private static JFrame mainJFrame;
 	private static JFrame frame;
@@ -167,6 +167,7 @@ public class SDKManager
 	static volatile String sKernel;
 	static volatile String sQuickBoot;
 	static volatile String sMemory;
+	static volatile String sToolsEntry;
 
 	static volatile boolean bBreakOut;
 	static volatile boolean bIncludeObsolete;
@@ -177,6 +178,7 @@ public class SDKManager
 	static volatile boolean bCommandFinished;
 	static volatile boolean bGetAVDFinished;
 	static volatile boolean bAVDSubmit;
+	static volatile boolean bAddTools;
 
 	static volatile int iOS;
 	static volatile int iFontSize;
@@ -229,7 +231,7 @@ public class SDKManager
 
 	//}}}
 
-	//{{{    SDKManager() constructor
+	//{{{   SDKManager() constructor
 	public SDKManager()
 	{
 		// Determine OS..
@@ -253,27 +255,25 @@ public class SDKManager
 
 		RefreshProperties();
 
-		// Check 'tools' directory..		
+		// Check 'tools' directory..
+        // If 'cmdline-tools' is available use that..		
 		StringBuffer sB = new StringBuffer();
 		sB.append(sSDKPath);
-		sB.append("/tools");
-		//System.out.println("(tools)sB.toString(): '"+sB.toString()+"'");
+		sB.append("/cmdline-tools");
 		File tFile = new File(sB.toString());
 		if (tFile.exists())
 		{
-			//System.out.println("tools exists");
-			sToolsDir = "tools";
+			sToolsDir = "cmdline-tools";
 		}
 		else
 		{
 			sB = new StringBuffer();
 			sB.append(sSDKPath);
-			sB.append("/cmdline-tools");
-			//System.out.println("(cmdline-tools)sB.toString(): '"+sB.toString()+"'");
+			sB.append("/tools");
 			tFile = new File(sB.toString());
 			if (tFile.exists())
 			{
-				sToolsDir = "cmdline-tools";
+				sToolsDir = "tools";
 			}
 		}
 
@@ -679,7 +679,7 @@ public class SDKManager
 
 				iSz = AVDsAr.size();
 				tSa = new String[iSz];
-				for (int iJ = 0; iJ<AVDsAr.size(); iJ++)
+				for (int iJ = 0; iJ < AVDsAr.size(); iJ++)
 				{
 					aVDInfo = (AVDInfo) AVDsAr.get(iJ);
 					sPath = aVDInfo.sPath;
@@ -798,12 +798,18 @@ public class SDKManager
 			//System.out.println("\nGetPackagesBgThread run()");
 			StringBuffer sb = new StringBuffer();
 			String sT = "";
+			String sT2 = "";
 			String sPackage = "";
 			String sInstalled = "";
 			String sUpdate = "";
+			String sVersion = "";
+			String sUpdateVersion = "";
+			String sEmulatorEntry = "";
 			StringBuffer sB;
 			boolean bFoundUpdates = false;
+			boolean bFoundUpdate;
 			boolean bAddEmulator = false;
+			boolean bAddTools = false;
 			boolean bDoAdd = false;
 			int iLoc2 = 0;
 			int iLoc3 = 0;
@@ -818,6 +824,8 @@ public class SDKManager
 			int iLoc14 = 0;
 			int iLoc15 = 0;
 			int iStart = 0;
+			int iStart2 = 0;
+			int iCol = 0;
 			int iCount;
 			byte[] bOutAr = null;
 			byte[] bAr = {(byte) 0x0a, (byte) 0x20, (byte) 0x20};
@@ -968,7 +976,7 @@ public class SDKManager
                 System.out.println("commandResultS: '"+commandResultS+"'");
 /**/
 
-			if ((commandResultS != null) && (commandResultS.length() > 0))
+			if ( (commandResultS != null) && (commandResultS.length() > 0) )
 			{
 				PackageAr = new ArrayList();
 				InstalledAr = new ArrayList();
@@ -983,13 +991,93 @@ public class SDKManager
 					bFoundUpdates = true;
 				else
 					iLoc4 = commandResultS.length();
+				
+				
+				// Get available updates..
+				if ( bFoundUpdates )
+				{
+					iLoc8 = iLoc4;
+					for ( int iX = 0; iX < 3; iX++ )
+					{
+						iLoc8 = commandResultS.indexOf(sStart, iLoc8);
+						iLoc8 += 2; // Next..
+					}
+
+					iLoc7 = iLoc8;
+					for ( ; Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
+					iStart = iLoc7;
+
+					while (true)
+					{
+						for (; !Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++);
+						sUpdate = commandResultS.substring(iStart, iLoc7);
+						//System.out.println("sUpdate: '"+sUpdate+"'");
+						
+                        for ( ; Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
+                        iLoc7 += 2;
+                        iStart2 = iLoc7;
+                        for ( ; !Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
+                        sVersion = commandResultS.substring(iStart2, iLoc7);
+                        sVersion = sVersion.trim();
+                        //System.out.println("sVersion: '"+sVersion+"'");
+						
+                        for ( ; Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
+                        iLoc7 += 2;
+                        iStart2 = iLoc7;
+                        for ( ; !Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
+                        sUpdateVersion = commandResultS.substring(iStart2, iLoc7);
+                        sUpdateVersion = sUpdateVersion.trim();
+                        //System.out.println("sUpdateVersion: '"+sUpdateVersion+"'");
+                        sB = new StringBuffer();
+                        sB.append(sUpdate);
+						
+                        iCol = 8;
+                        while ( true )
+                        {
+                            if ( sInstalled.length() >= iCol )
+                                ;
+                            else
+                            {
+                                for ( int iX = 0; iX < (iCol - sInstalled.length()); iX++ )
+                                    sB.append("  ");
+                                
+                                sB.append("        ");
+                                break;
+                            }
+                            
+                            iCol += 8;
+                        }
+						
+						sB.append(sVersion);
+						sB.append("    ");
+						sB.append(sUpdateVersion);
+						
+						UpdateAr.add((String)sB.toString());
+						//System.out.println("(Final Update)sB: '"+sB.toString()+"'");
+						
+						if ( sUpdate.equals("emulator") )
+						    sEmulatorEntry = sB.toString();
+
+						// Next..
+						iLoc7 = commandResultS.indexOf(sStart, iLoc7); // 0x0a 0x20 0x20
+						if (iLoc7 == -1)
+							break;
+
+						for ( ; Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
+
+						if ( iLoc7 >= commandResultS.length() )
+							break;
+
+						iStart = iLoc7;
+					} // End while..
+				}
 
 				// Get installed packages..                
 				iLoc6 = commandResultS.indexOf("Location", iLoc3); // Past 'Installed packages:'..
 				if (iLoc6 != -1)
 				{
 					iLoc7 = iLoc6;
-					for (int iJ = 0;; iJ++)
+					for ( int iJ = 0;; iJ++ )
 					{
 						iLoc7 = commandResultS.indexOf(sStart, iLoc7);
 						if (iJ == 0)
@@ -1011,18 +1099,88 @@ public class SDKManager
 							iLoc7 += 3;
 							iStart = iLoc7;
 
-							for (; !Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++);
+							for ( ; !Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
 							sInstalled = commandResultS.substring(iStart, iLoc7);
 							//System.out.println("sInstalled: '"+sInstalled+"'");
 							
-							// For some reason it doesn't include 'emulator'
+							// For some reason it doesn't include 'emulator' or 'tools'
 							// in the list of Packages, so detect it here, to add..
 							if ( sInstalled.equals("emulator") )
 							{
 							    bAddEmulator = true;
+                                    
+                                // Get version..
+                                for ( ; Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
+                                iLoc7 += 2;
+                                iStart2 = iLoc7;
+                                for ( ; !Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
+                                sVersion = commandResultS.substring(iStart2, iLoc7);
+                                sVersion = sVersion.trim();
+                                //System.out.println("sVersion: '"+sVersion+"'");
+                                sB = new StringBuffer();
+                                sB.append(sInstalled);
+                                
+                                iCol = 8;
+                                while ( true )
+                                {
+                                    if ( sInstalled.length() >= iCol )
+                                        ;
+                                    else
+                                    {
+                                        for ( int iX = 0; iX < (iCol - sInstalled.length()); iX++ )
+                                            sB.append("  ");
+                                        
+                                        sB.append("        ");
+                                        break;
+                                    }
+                                    
+                                    iCol += 8;
+                                }
+                                
+                                sB.append(sVersion);
+                                sInstalled = sB.toString();
+                                sEmulatorEntry = sB.toString();
+							    
+							}
+							else if ( sInstalled.equals("tools") )
+							{
+							    bAddTools = true;
+                                    
+                                // Get version..
+                                for ( ; Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
+                                iLoc7 += 2;
+                                iStart2 = iLoc7;
+                                for ( ; !Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
+                                sVersion = commandResultS.substring(iStart2, iLoc7);
+                                sVersion = sVersion.trim();
+                                //System.out.println("sVersion: '"+sVersion+"'");
+                                sB = new StringBuffer();
+                                sB.append(sInstalled);
+                                
+                                iCol = 8;
+                                while ( true )
+                                {
+                                    if ( sInstalled.length() >= iCol )
+                                        ;
+                                    else
+                                    {
+                                        for ( int iX = 0; iX < (iCol - sInstalled.length()); iX++ )
+                                            sB.append("  ");
+                                        
+                                        sB.append("        ");
+                                        break;
+                                    }
+                                    
+                                    iCol += 8;
+                                }
+                                
+                                sB.append(sVersion);
+                                sInstalled = sB.toString();
+                                sToolsEntry = sB.toString();
+							    
 							}
 							
-							InstalledAr.add((String) sInstalled);
+							InstalledAr.add((String)sInstalled);
 						}
 					} // End while..
 				}
@@ -1049,7 +1207,7 @@ public class SDKManager
                     while ( true )
                     {
                         //System.out.println("(TOP)"+commandResultS.substring(iLoc7, iLoc7 + 10));
-                        for (; !Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++);
+                        for ( ; !Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
                         sInstalled = commandResultS.substring(iStart, iLoc7);
                         //System.out.println("(Obsolete)sInstalled: '"+sInstalled+"'");
                         
@@ -1065,13 +1223,15 @@ public class SDKManager
                             if (iLoc7 >= iLoc5) // 'Available Packages:'
                                 break;
 
-                            for (; Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++);
+                            for ( ; Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
                             iStart = iLoc7;
                         }
                     }   // End while..
                 }
-
+                
 				// Get available packages..
+				//System.out.println("\n=========================================");
+				//System.out.println("Available Packages");
 				iLoc6 = commandResultS.indexOf("Description", iLoc5); // From 'Available Packages:'
 				if ( iLoc6 != -1 )
 				{
@@ -1110,70 +1270,119 @@ public class SDKManager
                                     bDoAdd = false;
                             }
 						    
-							for (; !Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++);
+							for ( ; !Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
 							sPackage = commandResultS.substring(iStart, iLoc7);
-							//System.out.println("sPackage: '"+sPackage+"'");
+							//System.out.println("\nsPackage: '"+sPackage+"'");
+
+							bFoundUpdate = false;
+                            // Check if there is an Update for this Package..							
+							if ( (UpdateAr != null) && (UpdateAr.size() > 0) )
+							{
+							    for ( int iZ = 0; iZ < UpdateAr.size(); iZ++ )
+							    {
+							        sT = (String)UpdateAr.get(iZ);
+							        iLoc2 = sT.indexOf(" ");
+							        if ( iLoc2 != -1 )
+							            sT2 = sT.substring(0, iLoc2);
+							        
+							        //System.out.println("(Update)sT2: '"+sT2+"'");
+							        //System.out.println("sPackage: '"+sPackage+"'");
+							        if ( sPackage.equals(sT2) )
+							        {
+							            // Matched Update, use that..
+							            //System.out.println("--Matched Update--");
+							            PackageAr.add((String)sT);
+							            
+							            bFoundUpdate = true;
+							            break;
+							        }
+							    }
+							    
+							    if ( bFoundUpdate )
+							    {
+                                    // Next..
+                                    iLoc7 = commandResultS.indexOf(sStart, iLoc7); // 0x0a 0x20 0x20
+                                    if (iLoc7 == -1)
+                                    {
+                                        break;
+                                    }
+        
+                                    for ( ; Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
+        
+                                    if ( iLoc7 >= iLoc4 ) // 'Available Updates:'
+                                    {
+                                        break;
+                                    }
+        
+                                    iStart = iLoc7;
+                                    continue;
+							    }
+							}
 							
 							if ( sPackage.startsWith("extras;") )
 							{
 							    if ( bAddEmulator )
 							    {
-							        PackageAr.add((String)"emulator");
+							        PackageAr.add((String)sEmulatorEntry);
 							        bAddEmulator = false;    // Reset..
 							    }
+							    
+							    if ( bAddTools )
+							    {
+							        PackageAr.add((String)sToolsEntry);
+							        bAddTools = false;    // Reset..
+							    }
 							}
-
+                            
+                            // Get version..
+                            for ( ; Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
+                            iLoc7 += 2;
+                            iStart2 = iLoc7;
+                            for ( ; !Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
+                            sVersion = commandResultS.substring(iStart2, iLoc7);
+                            sVersion = sVersion.trim();
+                            //System.out.println("sVersion: '"+sVersion+"'");
+                            sB = new StringBuffer();
+                            sB.append(sPackage);
+                            //System.out.println("sPackage.length(): "+sPackage.length());
+                            
+                            iCol = 8;
+                            while ( true )
+                            {
+                                //System.out.println("--TOP-- iCol: "+iCol);
+                                if ( sPackage.length() >= iCol )
+                                    ;
+                                else
+                                {
+                                    //System.out.println("iCol - sPackage.length(): "+(iCol - sPackage.length()));
+                                    for ( int iJ = 0; iJ < (iCol - sPackage.length()); iJ++ )
+                                        sB.append("  ");
+                                    
+                                    sB.append("        ");
+                                    break;
+                                }
+                                
+                                iCol += 8;
+                            }
+                            
+                            sB.append(sVersion);
+                            
                             if ( bDoAdd )							
-                                PackageAr.add((String) sPackage);
+                                PackageAr.add((String)sB.toString());
 
 							// Next..
 							iLoc7 = commandResultS.indexOf(sStart, iLoc7); // 0x0a 0x20 0x20
 							if (iLoc7 == -1)
 								break;
 
-							for (; Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++);
+							for ( ; Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
 
 							if (iLoc7 >= iLoc4) // 'Available Updates:'
 								break;
 
 							iStart = iLoc7;
-						}
+						}    // End while..
 					}
-				}
-
-				// Get available updates..
-				if ( bFoundUpdates )
-				{
-					iLoc8 = iLoc4;
-					for ( int iX = 0; iX < 3; iX++ )
-					{
-						iLoc8 = commandResultS.indexOf(sStart, iLoc8);
-						iLoc8 += 2; // Next..
-					}
-
-					iLoc7 = iLoc8;
-					for (; Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++);
-					iStart = iLoc7;
-
-					while (true)
-					{
-						for (; !Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++);
-						sUpdate = commandResultS.substring(iStart, iLoc7);
-						//System.out.println("sUpdate: '"+sUpdate+"'");
-						UpdateAr.add((String) sUpdate);
-
-						// Next..
-						iLoc7 = commandResultS.indexOf(sStart, iLoc7); // 0x0a 0x20 0x20
-						if (iLoc7 == -1)
-							break;
-
-						for (; Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++);
-
-						if (iLoc7 >= commandResultS.length()) // 'Available Updates:'
-							break;
-
-						iStart = iLoc7;
-					} // End while..
 				}
 			}
 
@@ -1300,7 +1509,7 @@ public class SDKManager
 
 						iStart = iLoc2;
 						iLoc3 = iLoc2;
-						for (; !Character.isWhitespace(commandResultS.charAt(iLoc3)); iLoc3++);
+						for ( ; !Character.isWhitespace(commandResultS.charAt(iLoc3)); iLoc3++ );
 
 						sT = commandResultS.substring(iStart, iLoc3);
 						sT = sT.trim();
@@ -1376,6 +1585,7 @@ public class SDKManager
 		{
 			String sT = "";
 			String sT2 = "";
+			int iLoc2 = 0;
 			//Color green = new Color((int)0x7c, (int)0xfc, (int)0x00);   // LawnGreen
 			Color green = new Color((int) 0x7f, (int) 0xff, (int) 0x00); // Chartreuse
 			Color gold = new Color((int) 0xff, (int) 0xd7, (int) 0x00); // Gold
@@ -1390,20 +1600,40 @@ public class SDKManager
 
 			//System.out.println("value.toString(): '"+value.toString()+"'");
 			//System.out.println("index: "+index);
+			String sValue = value.toString();
+            iLoc2 = sValue.indexOf(" ");
+            if ( iLoc2 != -1 )
+            {
+                sValue = sValue.substring(0, iLoc2);
+                sValue = sValue.trim();
+            }
 
-			if ((InstalledAr != null) && (InstalledAr.size() > 0))
+			if ( (InstalledAr != null) && (InstalledAr.size() > 0) )
 			{
-				for (int iJ = 0; iJ<InstalledAr.size(); iJ++)
+				for ( int iJ = 0; iJ < InstalledAr.size(); iJ++ )
 				{
-					sT = (String) InstalledAr.get(iJ);
-					if (sT.equals(value.toString()))
+					sT = (String)InstalledAr.get(iJ);
+					iLoc2 = sT.indexOf(" ");
+					if ( iLoc2 != -1 )
+					{
+					    sT = sT.substring(0, iLoc2);
+					    sT = sT.trim();
+					}
+
+                    //System.out.println("sT: '"+sT+"'");	
+                    //System.out.println("sValue: '"+sValue+"'");
+					if ( sT.equals(sValue) )
 					{
 						bUpdateMatch = false;
 						if ((UpdateAr != null) && (UpdateAr.size() > 0))
 						{
-							for (int iX = 0; iX<UpdateAr.size(); iX++)
+							for ( int iX = 0; iX < UpdateAr.size(); iX++ )
 							{
-								sT2 = (String) UpdateAr.get(iX);
+								sT2 = (String)UpdateAr.get(iX);
+                                iLoc2 = sT2.indexOf(" ");
+                                if ( iLoc2 != -1 )
+                                    sT2 = sT2.substring(0, iLoc2);
+								
 								if (sT2.equals(sT))
 								{
 									bUpdateMatch = true;
@@ -1412,7 +1642,7 @@ public class SDKManager
 							}
 						}
 
-						if (bUpdateMatch)
+						if ( bUpdateMatch )
 							c.setBackground(gold);
 						else
 							c.setBackground(green);
@@ -1852,8 +2082,9 @@ public class SDKManager
 							sB.append(sEnd);
 
 							sBOut.append(sB.toString());
+							
+/*
 
-/*							
                             System.out.println("\n\n");
                             char cTChr;
 
@@ -1940,7 +2171,7 @@ public class SDKManager
 				{}
 			}
 
-			if (process != null)
+			if ( process != null )
 			{
 				process.destroy();
 				process = null;
@@ -2033,56 +2264,59 @@ public class SDKManager
 		if ((AVDsAr != null) && (AVDsAr.size() > 0))
 		{
 			//System.out.println("iAdvSelectedIndex: "+iAdvSelectedIndex);
-			aVDInfo = (AVDInfo) AVDsAr.get(iAdvSelectedIndex);
-			if ((aVDInfo.sName != null) && (!aVDInfo.sName.equals("")))
+			if ( iAdvSelectedIndex < AVDsAr.size() )
 			{
-				avdTextArea.append("Name:  ");
-				avdTextArea.append(aVDInfo.sName);
-				avdTextArea.append("\n");
-			}
-
-			if ((aVDInfo.sDevice != null) && (!aVDInfo.sDevice.equals("")))
-			{
-				avdTextArea.append("Device:  ");
-				avdTextArea.append(aVDInfo.sDevice);
-				avdTextArea.append("\n");
-			}
-
-			if ((aVDInfo.sPath != null) && (!aVDInfo.sPath.equals("")))
-			{
-				sB = new StringBuffer();
-				sB.append("Path:  ");
-				sB.append(aVDInfo.sPath);
-
-				while (true)
-				{
-					iPathLength = sB.toString().length();
-					if (iPathLength<(iLongest + 4))
-						sB.append(" ");
-					else
-						break;
-				}
-
-				avdTextArea.append(sB.toString());
-				avdTextArea.append("\n");
-			}
-
-			if ((aVDInfo.sTarget != null) && (!aVDInfo.sTarget.equals("")))
-			{
-				avdTextArea.append("Target:  ");
-				avdTextArea.append(aVDInfo.sTarget);
-				avdTextArea.append("\n");
-			}
-
-			if ((aVDInfo.sBasedOn != null) && (!aVDInfo.sBasedOn.equals("")))
-			{
-				sB = new StringBuffer();
-				sB.append("Based on:  ");
-				sB.append(aVDInfo.sBasedOn);
-				sADV_BasedOn = aVDInfo.sBasedOn; // Save for ABI..
-
-				avdTextArea.append(sB.toString());
-			}
+                aVDInfo = (AVDInfo) AVDsAr.get(iAdvSelectedIndex);
+                if ((aVDInfo.sName != null) && (!aVDInfo.sName.equals("")))
+                {
+                    avdTextArea.append("Name:  ");
+                    avdTextArea.append(aVDInfo.sName);
+                    avdTextArea.append("\n");
+                }
+    
+                if ((aVDInfo.sDevice != null) && (!aVDInfo.sDevice.equals("")))
+                {
+                    avdTextArea.append("Device:  ");
+                    avdTextArea.append(aVDInfo.sDevice);
+                    avdTextArea.append("\n");
+                }
+    
+                if ((aVDInfo.sPath != null) && (!aVDInfo.sPath.equals("")))
+                {
+                    sB = new StringBuffer();
+                    sB.append("Path:  ");
+                    sB.append(aVDInfo.sPath);
+    
+                    while (true)
+                    {
+                        iPathLength = sB.toString().length();
+                        if (iPathLength<(iLongest + 4))
+                            sB.append(" ");
+                        else
+                            break;
+                    }
+    
+                    avdTextArea.append(sB.toString());
+                    avdTextArea.append("\n");
+                }
+    
+                if ((aVDInfo.sTarget != null) && (!aVDInfo.sTarget.equals("")))
+                {
+                    avdTextArea.append("Target:  ");
+                    avdTextArea.append(aVDInfo.sTarget);
+                    avdTextArea.append("\n");
+                }
+    
+                if ((aVDInfo.sBasedOn != null) && (!aVDInfo.sBasedOn.equals("")))
+                {
+                    sB = new StringBuffer();
+                    sB.append("Based on:  ");
+                    sB.append(aVDInfo.sBasedOn);
+                    sADV_BasedOn = aVDInfo.sBasedOn; // Save for ABI..
+    
+                    avdTextArea.append(sB.toString());
+                }
+            }
 		}
 
 		gbc.gridx = 1;
@@ -2165,7 +2399,7 @@ public class SDKManager
 		JScrollPane packageScrollPane = new JScrollPane();
 		iSz = PackageAr.size();
 		tSa = new String[iSz];
-		for (int iJ = 0; iJ<PackageAr.size(); iJ++)
+		for ( int iJ = 0; iJ < PackageAr.size(); iJ++ )
 		{
 			tSa[iJ] = (String) PackageAr.get(iJ);
 			//System.out.println("["+iJ+"]: '"+tSa[iJ]+"'");
@@ -2335,8 +2569,8 @@ public class SDKManager
 
 		iSz = SystemImagesAr.size();
 		tSa = new String[iSz];
-		for (int iJ = 0; iJ<SystemImagesAr.size(); iJ++)
-			tSa[iJ] = (String) SystemImagesAr.get(iJ);
+		for ( int iJ = 0; iJ < SystemImagesAr.size(); iJ++ )
+			tSa[iJ] = (String)SystemImagesAr.get(iJ);
 
 		sIJList = new JList(tSa);
 		sIJList.setVisibleRowCount(5);
@@ -2360,8 +2594,8 @@ public class SDKManager
 
 		iSz = DevicesAr.size();
 		tSa = new String[iSz];
-		for (int iJ = 0; iJ<DevicesAr.size(); iJ++)
-			tSa[iJ] = (String) DevicesAr.get(iJ);
+		for ( int iJ = 0; iJ < DevicesAr.size(); iJ++ )
+			tSa[iJ] = (String)DevicesAr.get(iJ);
 
 		devicesJList = new JList(tSa);
 		devicesJList.setVisibleRowCount(5);
@@ -2422,24 +2656,21 @@ public class SDKManager
 			// Refresh 'tools' directory..		
 			StringBuffer sB = new StringBuffer();
 			sB.append(sSDKPath);
-			sB.append("/tools");
-			//System.out.println("(tools)sB.toString(): '"+sB.toString()+"'");
+			sB.append("/cmdline-tools");
 			File tFile = new File(sB.toString());
 			if (tFile.exists())
 			{
-				//System.out.println("tools exists");
-				sToolsDir = "tools";
+				sToolsDir = "cmdline-tools";
 			}
 			else
 			{
 				sB = new StringBuffer();
 				sB.append(sSDKPath);
-				sB.append("/cmdline-tools");
-				//System.out.println("(cmdline-tools)sB.toString(): '"+sB.toString()+"'");
+				sB.append("/tools");
 				tFile = new File(sB.toString());
 				if (tFile.exists())
 				{
-					sToolsDir = "cmdline-tools";
+					sToolsDir = "tools";
 				}
 			}
 
@@ -2868,7 +3099,6 @@ public class SDKManager
 					sb.append('"');
 					sb.append(sAVDName);
 					sb.append('"');
-					//sb.append(" ");
 					
 					if ( (sUseForce32Bit != null) && (sUseForce32Bit.length() > 0) )
 					{
@@ -3108,6 +3338,7 @@ public class SDKManager
 				//System.out.println("PACKAGE_SUBMIT");
 				int[] iSelAr = packageJList.getSelectedIndices();
 				int iLength;
+				int iLoc2 = 0;
 				String sImage = "";
 				StringBuffer sb;
 				ListModel model;
@@ -3158,7 +3389,7 @@ public class SDKManager
 
 					sb.append("&&sdkmanager ");
 				}
-
+				
 				bUpdateSelected = updateCheckBox.isSelected();
 				//System.out.println("bUpdateSelected: "+bUpdateSelected);
 				if ( bUpdateSelected )
@@ -3178,11 +3409,14 @@ public class SDKManager
 					{
 						model = packageJList.getModel();
 
-						for (int iJ = 0; iJ < iSelAr.length; iJ++)
+						for ( int iJ = 0; iJ < iSelAr.length; iJ++ )
 						{
-							sImage = (String) model.getElementAt(iSelAr[iJ]);
+							sImage = (String)model.getElementAt(iSelAr[iJ]);
+							iLoc2 = sImage.indexOf(" ");
+							if ( iLoc2 != -1 )
+							    sImage = sImage.substring(0, iLoc2);
+							
 							//System.out.println("sImage: '"+sImage+"'");
-
 							sb.append('"');
 							sb.append(sImage);
 							sb.append('"');
@@ -3197,26 +3431,28 @@ public class SDKManager
 				}
 
 				//System.out.println("bDoChannels: "+bDoChannels);
-				if (bDoChannels)
+				if ( bDoChannels )
 				{
-					if (sPackageChannel.equals("stable"))
-						sb.append("--channel=0 ");
-					else if (sPackageChannel.equals("beta"))
-						sb.append("--channel=1 ");
-					else if (sPackageChannel.equals("dev"))
-						sb.append("--channel=2 ");
-					else if (sPackageChannel.equals("canary"))
-						sb.append("--channel=3 ");
+				    if ( (sPackageChannel != null) && (sPackageChannel.length() > 0) )
+				    {
+                        if ( sPackageChannel.equals("stable") )
+                            sb.append("--channel=0 ");
+                        else if ( sPackageChannel.equals("beta") )
+                            sb.append("--channel=1 ");
+                        else if ( sPackageChannel.equals("dev") )
+                            sb.append("--channel=2 ");
+                        else if ( sPackageChannel.equals("canary") )
+                            sb.append("--channel=3 ");
+                    }
 				}
 
 				sb.append("--sdk_root=");
 				sb.append(sSDKPath);
 
-				if (iOS == WINDOWS)
+				if ( iOS == WINDOWS )
 					sb.append("\n");
 				
 				//System.out.println("sb: '"+sb.toString()+"'");
-
 				bHideOutput = false;
 				interactiveRequestLatch = new CountDownLatch(1);
 				sInternalCommand = sb.toString();
@@ -3258,74 +3494,75 @@ public class SDKManager
 			byte[] bAr = {(byte) 0x0d, (byte) 0x0a};
 			String sCR = new String(bAr);
 
-			if (bValueIsAdjusting == false)
+			if ( bValueIsAdjusting == false )
 			{
 				int[] iSelAr = avdJList.getSelectedIndices();
 				if ((iSelAr != null) && (iSelAr.length > 0))
 				{
 					iAdvSelectedIndex = iSelAr[0];
 					//System.out.println("iAdvSelectedIndex: "+iAdvSelectedIndex);
-
 				}
 
 				avdTextArea.selectAll();
 				avdTextArea.replaceSelection("");
 
-				aVDInfo = (AVDInfo) AVDsAr.get(iAdvSelectedIndex);
-
-				if ((aVDInfo.sName != null) && (!aVDInfo.sName.equals("")))
+				if ( iAdvSelectedIndex < AVDsAr.size() )
 				{
-					avdTextArea.append("Name:  ");
-					avdTextArea.append(aVDInfo.sName);
-					avdTextArea.append("\n");
-				}
-
-				if ((aVDInfo.sDevice != null) && (!aVDInfo.sDevice.equals("")))
-				{
-					avdTextArea.append("Device:  ");
-					avdTextArea.append(aVDInfo.sDevice);
-					avdTextArea.append("\n");
-				}
-
-				if ((aVDInfo.sPath != null) && (!aVDInfo.sPath.equals("")))
-				{
-					sB = new StringBuffer();
-					sB.append("Path:  ");
-					sB.append(aVDInfo.sPath);
-
-					while (true)
-					{
-						iPathLength = sB.toString().length();
-						if ( iPathLength < (iLongest + 4) )
-							sB.append(" ");
-						else
-							break;
-					}
-
-					avdTextArea.append(sB.toString());
-					avdTextArea.append("\n");
-				}
-
-				if ((aVDInfo.sTarget != null) && (!aVDInfo.sTarget.equals("")))
-				{
-					avdTextArea.append("Target:  ");
-					avdTextArea.append(aVDInfo.sTarget);
-					avdTextArea.append("\n");
-				}
-
-				if ((aVDInfo.sBasedOn != null) && (!aVDInfo.sBasedOn.equals("")))
-				{
-					sB = new StringBuffer();
-					sB.append("Based on:  ");
-					sB.append(aVDInfo.sBasedOn);
-					sADV_BasedOn = aVDInfo.sBasedOn; // Save for ABI..
-
-					avdTextArea.append(sB.toString());
-				}
-
-				avdsFrame.invalidate();
-				avdsFrame.validate();
-				avdsFrame.repaint();
+                    aVDInfo = (AVDInfo)AVDsAr.get(iAdvSelectedIndex);
+                    if ((aVDInfo.sName != null) && (!aVDInfo.sName.equals("")))
+                    {
+                        avdTextArea.append("Name:  ");
+                        avdTextArea.append(aVDInfo.sName);
+                        avdTextArea.append("\n");
+                    }
+    
+                    if ((aVDInfo.sDevice != null) && (!aVDInfo.sDevice.equals("")))
+                    {
+                        avdTextArea.append("Device:  ");
+                        avdTextArea.append(aVDInfo.sDevice);
+                        avdTextArea.append("\n");
+                    }
+    
+                    if ( (aVDInfo.sPath != null) && (!aVDInfo.sPath.equals("")) )
+                    {
+                        sB = new StringBuffer();
+                        sB.append("Path:  ");
+                        sB.append(aVDInfo.sPath);
+    
+                        while ( true )
+                        {
+                            iPathLength = sB.toString().length();
+                            if ( iPathLength < (iLongest + 4) )
+                                sB.append(" ");
+                            else
+                                break;
+                        }
+    
+                        avdTextArea.append(sB.toString());
+                        avdTextArea.append("\n");
+                    }
+    
+                    if ((aVDInfo.sTarget != null) && (!aVDInfo.sTarget.equals("")))
+                    {
+                        avdTextArea.append("Target:  ");
+                        avdTextArea.append(aVDInfo.sTarget);
+                        avdTextArea.append("\n");
+                    }
+    
+                    if ((aVDInfo.sBasedOn != null) && (!aVDInfo.sBasedOn.equals("")))
+                    {
+                        sB = new StringBuffer();
+                        sB.append("Based on:  ");
+                        sB.append(aVDInfo.sBasedOn);
+                        sADV_BasedOn = aVDInfo.sBasedOn; // Save for ABI..
+    
+                        avdTextArea.append(sB.toString());
+                    }
+    
+                    avdsFrame.invalidate();
+                    avdsFrame.validate();
+                    avdsFrame.repaint();
+                }
 			}
 		}
 	}; //}}}
@@ -3362,7 +3599,7 @@ public class SDKManager
 		else
 			return inS;
 
-		for (int g = 0; g < sb.length();)
+		for ( int g = 0; g < sb.length(); )
 		{
 			if (sb.charAt(g) == '\\')
 				sb.setCharAt(g, '/');

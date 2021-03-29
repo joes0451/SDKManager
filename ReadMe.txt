@@ -88,9 +88,6 @@ prompt.
 
 
 
-SDK Manager 1.0.5:
-    Some minor improvements.
-    
 SDK Manager 1.0.7:
     Added many options for launching the emulator.
     Fixed --include_obsolete results.
@@ -101,7 +98,12 @@ SDK Manager 1.0.8:
     Tried to fix issue with not finding AVDs.
     Added -memory option.
     
-    
+SDK Manager 1.0.9:
+    It now tries to use the 'cmdline-tools' directory if available.
+    Now shows the Version number in the Package list and the
+        new Version if there is an Update available.
+
+
 Please let me know of any issues you have so that
 I can try to fix it.
 
