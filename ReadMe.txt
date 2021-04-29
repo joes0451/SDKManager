@@ -7,8 +7,8 @@ Go into config.properties and fill in your paths to Java
 and the SDK that you want to manage.
 
 Setting up your Android SDK for the first time:
-The latest SDK version: 
 
+The latest SDK version: 
 https://developer.android.com/studio/#downloads
 
 Scroll down to "Command line tools only" and choose the Windows, Mac or Linux
@@ -19,10 +19,28 @@ version of the Android SDK tools package.
 
 - Unzip into your directory.
 
+Set the name of the new Android SDK directory in config.properties.
+
 !! To ensure that the SDK has the best chance of being properly set up
 please follow these steps in order:
 
-Select Manage SDK->Packages and select the highest 'platforms;..' level
+******************************************************************************
+When installing the latest SDK:
+
+Trying to install certain Packages can fail with:
+"Dependent package with key emulator not found"
+
+So, until I can get it to work from within the app,
+you'll need to run this from the command line to load the "tools" Package
+which will help further Package installs to go smoothly:
+
+cd [SDK Path]\cmdline-tools\bin                 Like:  cd C:\android-sdk-new\cmdline-tools\bin
+sdkmanager "tools" --sdk_root=[SDK Path]
+
+Enter 'y' to agree to the license.
+******************************************************************************
+
+Select 'Manage SDK->Packages' and select the highest 'platforms;..' level
 that you'd like to use, like 'platforms;android-30', check "Accept licenses"
 and hit Submit.
 
@@ -42,7 +60,6 @@ and you'll get partial or no results.
 
 You can try to fix this by temporarily turning off your firewall,
 to see if that fixes it, or by trying to set your firewall to not block it.
-It seems to want to block java.exe.
 
 It can interact with the SDK that Android Studio uses but it is
 recommended to use Android Studio to manage that.
@@ -88,12 +105,6 @@ prompt.
 
 
 
-SDK Manager 1.0.7:
-    Added many options for launching the emulator.
-    Fixed --include_obsolete results.
-    Fixed showing 'emulator' in Package list.
-    Other improvements.
-    
 SDK Manager 1.0.8:
     Tried to fix issue with not finding AVDs.
     Added -memory option.
@@ -103,6 +114,9 @@ SDK Manager 1.0.9:
     Now shows the Version number in the Package list and the
         new Version if there is an Update available.
 
+SDK Manager 1.1.0:
+    Fixed issue with 'cmdline-tools' sub-directories.
+    
 
 Please let me know of any issues you have so that
 I can try to fix it.

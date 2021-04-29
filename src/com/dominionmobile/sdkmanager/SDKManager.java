@@ -37,6 +37,7 @@ import javax.swing.ListSelectionModel;
 import javax.swing.*;
 import java.awt.Color;
 import java.awt.List;
+import java.awt.Font;
 import java.util.Iterator;
 import java.io.File;
 
@@ -147,7 +148,6 @@ public class SDKManager
 	static volatile String outputEndS;
 	static volatile String commandResultS;
 	static volatile String sDeviceName;
-	//static volatile String projectHomeS;
 	static volatile String commandS;
 	static volatile String sAvdDirectory;
 	static volatile String sJavaPath;
@@ -261,9 +261,39 @@ public class SDKManager
 		sB.append(sSDKPath);
 		sB.append("/cmdline-tools");
 		File tFile = new File(sB.toString());
+		String[] dirList;
+		String sLastDir = "";
+
+		// Handle 'cmdline-tools' sub-+directories..	
 		if (tFile.exists())
 		{
-			sToolsDir = "cmdline-tools";
+		    dirList = tFile.list();
+		    if ( (dirList != null) && (dirList.length > 0) )
+		    {
+                // Use version directory..
+                for ( int iZ = 0; iZ < dirList.length; iZ++ )
+                {
+                    //System.out.println("["+iZ+"]: '"+dirList[iZ]+"'");
+                    if ( dirList[iZ].equals("bin") || dirList[iZ].equals("lib") ||
+                            dirList[iZ].equals("NOTICE.txt") || dirList[iZ].equals("source.properties") )
+                        continue;
+                        
+                    sLastDir = dirList[iZ];
+                }
+                
+                //System.out.println("sLastDir: '"+sLastDir+"'");
+                if ( sLastDir.equals("") )
+                    sToolsDir = "cmdline-tools";    // No version directory..
+                else
+                {
+                    StringBuffer sB2 = new StringBuffer();
+                    sB2.append("cmdline-tools");
+                    sB2.append("/");
+                    sB2.append(sLastDir);
+                    
+                    sToolsDir = sB2.toString();
+                }
+		    }
 		}
 		else
 		{
@@ -276,7 +306,7 @@ public class SDKManager
 				sToolsDir = "tools";
 			}
 		}
-
+		
 		//System.out.println("sToolsDir: '"+sToolsDir+"'");		
 	} //}}}
 
@@ -827,6 +857,9 @@ public class SDKManager
 			int iStart2 = 0;
 			int iCol = 0;
 			int iCount;
+			int iTotal = 0;
+			int iPrevTotal = 0;
+			int iM = 0;
 			byte[] bOutAr = null;
 			byte[] bAr = {(byte) 0x0a, (byte) 0x20, (byte) 0x20};
 			String sStart = new String(bAr);
@@ -884,6 +917,9 @@ public class SDKManager
 			{
 				sb.append("cd ");
 				//sb.append("SET PATH=");
+				//System.out.println("sSDKPath: '"+sSDKPath+"'");
+				//System.out.println("sToolsDir: '"+sToolsDir+"'");
+				
 				sb.append(sSDKPath);
 				sb.append("/");
 				sb.append(sToolsDir);
@@ -987,11 +1023,20 @@ public class SDKManager
 				iLoc5 = commandResultS.indexOf("Available Packages:");
 				iLoc10 = commandResultS.indexOf("Available Obsolete Packages:");
 				iLoc4 = commandResultS.indexOf("Available Updates:");
+
+                if ( iLoc5 == -1 )
+                {
+                    // Error..
+                    if (operationRequestLatch != null)
+                        operationRequestLatch.countDown();
+                    
+                    return;
+                }
+				
 				if (iLoc4 != -1)
 					bFoundUpdates = true;
 				else
 					iLoc4 = commandResultS.length();
-				
 				
 				// Get available updates..
 				if ( bFoundUpdates )
@@ -1016,6 +1061,7 @@ public class SDKManager
                         for ( ; Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
                         iLoc7 += 2;
                         iStart2 = iLoc7;
+                        
                         for ( ; !Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
                         sVersion = commandResultS.substring(iStart2, iLoc7);
                         sVersion = sVersion.trim();
@@ -1024,6 +1070,7 @@ public class SDKManager
                         for ( ; Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
                         iLoc7 += 2;
                         iStart2 = iLoc7;
+                        
                         for ( ; !Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
                         sUpdateVersion = commandResultS.substring(iStart2, iLoc7);
                         sUpdateVersion = sUpdateVersion.trim();
@@ -1041,13 +1088,12 @@ public class SDKManager
                                 for ( int iX = 0; iX < (iCol - sInstalled.length()); iX++ )
                                     sB.append("  ");
                                 
-                                sB.append("        ");
                                 break;
                             }
                             
                             iCol += 8;
                         }
-						
+                        
 						sB.append(sVersion);
 						sB.append("    ");
 						sB.append(sUpdateVersion);
@@ -1090,7 +1136,7 @@ public class SDKManager
 						if ( (iLoc14 != -1) && (iLoc7 >= iLoc14) )
 						    break;
 						
-						if (iLoc7 >= iLoc5)
+						if ( (iLoc5 != -1) && (iLoc7 >= iLoc5) )
 							break;
 
 						if (iLoc7 != -1)
@@ -1113,6 +1159,7 @@ public class SDKManager
                                 for ( ; Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
                                 iLoc7 += 2;
                                 iStart2 = iLoc7;
+                                
                                 for ( ; !Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
                                 sVersion = commandResultS.substring(iStart2, iLoc7);
                                 sVersion = sVersion.trim();
@@ -1130,7 +1177,6 @@ public class SDKManager
                                         for ( int iX = 0; iX < (iCol - sInstalled.length()); iX++ )
                                             sB.append("  ");
                                         
-                                        sB.append("        ");
                                         break;
                                     }
                                     
@@ -1150,6 +1196,7 @@ public class SDKManager
                                 for ( ; Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
                                 iLoc7 += 2;
                                 iStart2 = iLoc7;
+                                
                                 for ( ; !Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
                                 sVersion = commandResultS.substring(iStart2, iLoc7);
                                 sVersion = sVersion.trim();
@@ -1167,7 +1214,6 @@ public class SDKManager
                                         for ( int iX = 0; iX < (iCol - sInstalled.length()); iX++ )
                                             sB.append("  ");
                                         
-                                        sB.append("        ");
                                         break;
                                     }
                                     
@@ -1177,7 +1223,6 @@ public class SDKManager
                                 sB.append(sVersion);
                                 sInstalled = sB.toString();
                                 sToolsEntry = sB.toString();
-							    
 							}
 							
 							InstalledAr.add((String)sInstalled);
@@ -1206,6 +1251,9 @@ public class SDKManager
                     
                     while ( true )
                     {
+                        if ( iLoc7 == -1 )
+                            break;
+                        
                         //System.out.println("(TOP)"+commandResultS.substring(iLoc7, iLoc7 + 10));
                         for ( ; !Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
                         sInstalled = commandResultS.substring(iStart, iLoc7);
@@ -1338,6 +1386,7 @@ public class SDKManager
                             for ( ; Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
                             iLoc7 += 2;
                             iStart2 = iLoc7;
+                            
                             for ( ; !Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
                             sVersion = commandResultS.substring(iStart2, iLoc7);
                             sVersion = sVersion.trim();
@@ -1349,16 +1398,13 @@ public class SDKManager
                             iCol = 8;
                             while ( true )
                             {
-                                //System.out.println("--TOP-- iCol: "+iCol);
                                 if ( sPackage.length() >= iCol )
                                     ;
                                 else
                                 {
-                                    //System.out.println("iCol - sPackage.length(): "+(iCol - sPackage.length()));
                                     for ( int iJ = 0; iJ < (iCol - sPackage.length()); iJ++ )
                                         sB.append("  ");
                                     
-                                    sB.append("        ");
                                     break;
                                 }
                                 
@@ -1809,7 +1855,7 @@ public class SDKManager
 				while (true)
 				{
 					iBytesRead = 0;
-					iBytesRead = inputStream.read(bBuf, 0, 1024);
+					iBytesRead = inputStream.read(bBuf, 0, bBuf.length);
 					//System.out.println("iBytesRead: "+iBytesRead);
 					if (iBytesRead == -1)
 					{
@@ -1819,6 +1865,7 @@ public class SDKManager
 					}
 					else if (iBytesRead > 0)
 					{
+					
 						sT = new String(bBuf, 0, iBytesRead);
 						//System.out.println("(input)"+sT);
 
@@ -1857,7 +1904,8 @@ public class SDKManager
 
 						sBOut.append(sT);
 
-/*                        
+						
+/*						
                         System.out.println("\n\n");
                         char cTChr;
 
@@ -1983,7 +2031,9 @@ public class SDKManager
 				} // End while..
 			}
 			catch (IOException ioe)
-			{}
+			{
+			    System.out.println("Exception");
+			}
 			finally
 			{
 				try
@@ -2083,8 +2133,7 @@ public class SDKManager
 
 							sBOut.append(sB.toString());
 							
-/*
-
+/*							
                             System.out.println("\n\n");
                             char cTChr;
 
@@ -2201,6 +2250,8 @@ public class SDKManager
 /**/			
 
 			bCommandFinished = true;
+			
+			//System.out.println("Exiting CommandBgThread run()");
 
 			if (commandRequestLatch != null)
 				commandRequestLatch.countDown();
@@ -2406,6 +2457,10 @@ public class SDKManager
 		}
 
 		packageJList = new JList(tSa);
+		//packageJList.setFont(new Font("Monospaced", Font.BOLD, 13));
+		//packageJList.setFont(new Font("Monospaced", Font.BOLD, 12));
+		//packageJList.setFont(new Font("SansSerif", Font.BOLD, 12));
+		//packageJList.setFont(new Font("Serif", Font.BOLD, 12));
 		packageJList.setCellRenderer(new ColorCellRenderer());
 		packageJList.setVisibleRowCount(8);
 		packageJList.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
@@ -2652,15 +2707,44 @@ public class SDKManager
 			sActionCommand = e.getActionCommand();
 			String sT = "";
 			//System.out.println("sActionCommand: '"+sActionCommand+"'");
-
+			
 			// Refresh 'tools' directory..		
 			StringBuffer sB = new StringBuffer();
+            String[] dirList;
+            String sLastDir = "";
+			
 			sB.append(sSDKPath);
 			sB.append("/cmdline-tools");
 			File tFile = new File(sB.toString());
-			if (tFile.exists())
+			if ( tFile.exists() )
 			{
-				sToolsDir = "cmdline-tools";
+                dirList = tFile.list();
+                if ( (dirList != null) && (dirList.length > 0) )
+                {
+                    // Use version directory..
+                    for ( int iZ = 0; iZ < dirList.length; iZ++ )
+                    {
+                        //System.out.println("["+iZ+"]: '"+dirList[iZ]+"'");
+                        if ( dirList[iZ].equals("bin") || dirList[iZ].equals("lib") ||
+                                dirList[iZ].equals("NOTICE.txt") || dirList[iZ].equals("source.properties") )
+                            continue;
+                            
+                        sLastDir = dirList[iZ];
+                    }
+                    
+                    //System.out.println("sLastDir: '"+sLastDir+"'");
+                    if ( sLastDir.equals("") )
+                        sToolsDir = "cmdline-tools";    // No version directory..
+                    else
+                    {
+                        StringBuffer sB2 = new StringBuffer();
+                        sB2.append("cmdline-tools");
+                        sB2.append("/");
+                        sB2.append(sLastDir);
+                        
+                        sToolsDir = sB2.toString();
+                    }
+                }
 			}
 			else
 			{
@@ -2673,7 +2757,9 @@ public class SDKManager
 					sToolsDir = "tools";
 				}
 			}
-
+			
+			//System.out.println("sToolsDir: '"+sToolsDir+"'");
+			
 			if (CREATE_ADV.equals(sActionCommand))
 			{
 				createThread = new CreateThread();
@@ -3408,7 +3494,7 @@ public class SDKManager
 					if ( (iSelAr != null) && (iSelAr.length > 0) )
 					{
 						model = packageJList.getModel();
-
+						
 						for ( int iJ = 0; iJ < iSelAr.length; iJ++ )
 						{
 							sImage = (String)model.getElementAt(iSelAr[iJ]);
