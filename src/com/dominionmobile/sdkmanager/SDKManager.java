@@ -249,6 +249,15 @@ public class SDKManager
 		sGPUMode = "";
 		sPackageChannel = "";
 		sIncludeObsolete = "";
+		sShowCommandResults = "";
+		sUseHTTPS = "";
+		sUseForce32Bit = "";
+		sAccel = "";
+		sDisableBootAnim = "";
+		sEngine = "";
+		sKernel = "";
+		sQuickBoot = "";
+		sMemory = "";
 		bAVDSubmit = false;
 
 		createGui();
@@ -264,7 +273,7 @@ public class SDKManager
 		String[] dirList;
 		String sLastDir = "";
 
-		// Handle 'cmdline-tools' sub-+directories..	
+		// Handle 'cmdline-tools' sub-directories..	
 		if (tFile.exists())
 		{
 		    dirList = tFile.list();
@@ -429,6 +438,7 @@ public class SDKManager
 				iLoc2 = commandResultS.indexOf("Virtual Devices:");
 				if (iLoc2 != -1)
 				{
+				    // End: 'The following Android Virtual Devices could not be loaded:'
 					iLoc8 = commandResultS.indexOf("The following", iLoc2);
 
 					while (true)
@@ -437,10 +447,10 @@ public class SDKManager
 						aVDInfo = new AVDInfo();
 						iLoc4 = commandResultS.indexOf("Name:", iLoc2);
 
-						if (iLoc4 >= iLoc8)
+						if ( (iLoc8 != -1) && (iLoc4 >= iLoc8) )
 							break;
 
-						if (iLoc4 != -1)
+						if ( iLoc4 != -1 )
 						{
 							iLoc4 += 6;
 							iStart = iLoc4;
@@ -453,6 +463,8 @@ public class SDKManager
 								aVDInfo.sName = sName;
 							}
 						}
+						else
+						    break;
 
 						iLoc3 = commandResultS.indexOf("---", iLoc2);
 						iLoc4 = commandResultS.indexOf("Device:", iLoc2);
@@ -885,13 +897,11 @@ public class SDKManager
 
 				sb.append(";sdkmanager --list ");
 
-                if ( (sIncludeObsolete != null) && (sIncludeObsolete.length() > 0) )
-                {				    
-                    if (sIncludeObsolete.equals("true"))
-                        sb.append("--include_obsolete ");
-                }
+                // We always include Obsolete to make managing
+                // things easier..
+                sb.append("--include_obsolete ");
 
-				if (sUseHTTPS.equals("false"))
+				if ( (sUseHTTPS != null) && (sUseHTTPS.equals("false")) )
 				{
 					sb.append("--no_https ");
 				}
@@ -925,10 +935,10 @@ public class SDKManager
 				sb.append(sToolsDir);
 				sb.append("/bin");
 				//sb.append(";%PATH%");
-
+				
 				sb.append("&&SET JAVA_HOME=");
 				sb.append(sJavaPath);
-
+				
 				sb.append("&&SET ANDROID_HOME=");
 				sb.append(sSDKPath);
 
@@ -936,23 +946,16 @@ public class SDKManager
 				sb.append(sSDKPath);
 
 				sb.append("&&sdkmanager --list ");
-/*				
-                if ( (sIncludeObsolete != null) && (sIncludeObsolete.length() > 0) )
-                {				    
-                    if (sIncludeObsolete.equals("true"))
-                        sb.append("--include_obsolete ");
-                }
-/**/ 
 
                 // We always include Obsolete to make managing
                 // things easier..
                 sb.append("--include_obsolete ");
-				
-				if (sUseHTTPS.equals("false"))
+
+				if ( (sUseHTTPS != null) && (sUseHTTPS.equals("false")) )
 				{
 					sb.append("--no_https ");
 				}
-
+				
 				if ( (sPackageChannel != null) && (sPackageChannel.length() > 0) )
 				{
 				    sPackageChannel = sPackageChannel.trim();
@@ -1122,6 +1125,7 @@ public class SDKManager
 				iLoc6 = commandResultS.indexOf("Location", iLoc3); // Past 'Installed packages:'..
 				if (iLoc6 != -1)
 				{
+				    //System.out.println("Installed Packages");
 					iLoc7 = iLoc6;
 					for ( int iJ = 0;; iJ++ )
 					{
@@ -1224,7 +1228,8 @@ public class SDKManager
                                 sInstalled = sB.toString();
                                 sToolsEntry = sB.toString();
 							}
-							
+
+                            //System.out.println("(Add)sInstalled: '"+sInstalled+"'");							
 							InstalledAr.add((String)sInstalled);
 						}
 					} // End while..
@@ -1262,7 +1267,10 @@ public class SDKManager
                         InstalledAr.add((String)sInstalled);
                         
                         if ( (sIncludeObsolete != null) && (sIncludeObsolete.equals("false")) )
+                        {
+                            //System.out.println("(1PackageAr.add()): '"+sInstalled+"'");
                             PackageAr.add((String)sInstalled);
+                        }
     
                         // Next..
                         iLoc7 = commandResultS.indexOf(sStart, iLoc7); // 0x0a 0x20 0x20
@@ -1290,6 +1298,7 @@ public class SDKManager
 						iStart = iLoc7;
 						while (true)
 						{
+						    //System.out.println("--TOP--");
 						    bDoAdd = true;
 						    //System.out.println("(TOP)"+commandResultS.substring(iLoc7, iLoc7 + 10));
 						    // Only show Obsolete Packages if actually selected..
@@ -1320,8 +1329,8 @@ public class SDKManager
 						    
 							for ( ; !Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
 							sPackage = commandResultS.substring(iStart, iLoc7);
-							//System.out.println("\nsPackage: '"+sPackage+"'");
-
+							//System.out.println("sPackage: '"+sPackage+"'");
+							
 							bFoundUpdate = false;
                             // Check if there is an Update for this Package..							
 							if ( (UpdateAr != null) && (UpdateAr.size() > 0) )
@@ -1339,6 +1348,7 @@ public class SDKManager
 							        {
 							            // Matched Update, use that..
 							            //System.out.println("--Matched Update--");
+							            //System.out.println("(2PackageAr.add()): '"+sT+"'");
 							            PackageAr.add((String)sT);
 							            
 							            bFoundUpdate = true;
@@ -1371,12 +1381,14 @@ public class SDKManager
 							{
 							    if ( bAddEmulator )
 							    {
+							        //System.out.println("(3PackageAr.add()): '"+sEmulatorEntry+"'");
 							        PackageAr.add((String)sEmulatorEntry);
 							        bAddEmulator = false;    // Reset..
 							    }
 							    
 							    if ( bAddTools )
 							    {
+							        //System.out.println("(4PackageAr.add()): '"+sToolsEntry+"'");
 							        PackageAr.add((String)sToolsEntry);
 							        bAddTools = false;    // Reset..
 							    }
@@ -1413,8 +1425,18 @@ public class SDKManager
                             
                             sB.append(sVersion);
                             
-                            if ( bDoAdd )							
+                            if ( bDoAdd )
+                            {
+                                //System.out.println("(5PackageAr.add()): '"+sB.toString()+"'");
+                                if ( sB.toString().startsWith("emulator") )
+                                {
+                                    // We have the 'emulator' added so
+                                    // don't add another one..
+                                    bAddEmulator = false;
+                                }
+                                
                                 PackageAr.add((String)sB.toString());
+                            }
 
 							// Next..
 							iLoc7 = commandResultS.indexOf(sStart, iLoc7); // 0x0a 0x20 0x20
@@ -1476,7 +1498,7 @@ public class SDKManager
 
 				sb.append(";sdkmanager --list ");
 
-				if (sUseHTTPS.equals("false"))
+				if ( (sUseHTTPS != null) && (sUseHTTPS.equals("false")) )
 				{
 					sb.append("--no_https ");
 				}
@@ -1505,7 +1527,7 @@ public class SDKManager
 
 				sb.append("&&sdkmanager --list ");
 
-				if (sUseHTTPS.equals("false"))
+				if ( (sUseHTTPS != null) && (sUseHTTPS.equals("false")) )
 				{
 					sb.append("--no_https ");
 				}
@@ -1809,7 +1831,6 @@ public class SDKManager
 		{
 			//System.out.println("== InteractiveCommand run() ==");
 			//System.out.println("sInternalCommand: '"+sInternalCommand+"'");
-
 			ProcessBuilder processBuilder;
 			Process process = null;
 			InputStream inputStream;
@@ -1819,6 +1840,7 @@ public class SDKManager
 			StringBuffer sBOut = null;
 			StringBuffer sB;
 			byte[] bBuf = new byte[1024];
+			//byte[] bBuf = new byte[2048];
 
 			byte[] bZd = {(byte) 0x0d};
 			String sZeroD = new String(bZd);
@@ -1829,6 +1851,7 @@ public class SDKManager
 
 			int iBytesRead = 0;
 			int iLoc2 = 0;
+			int iExitVal = 0;
 
 			try
 			{
@@ -1857,13 +1880,7 @@ public class SDKManager
 					iBytesRead = 0;
 					iBytesRead = inputStream.read(bBuf, 0, bBuf.length);
 					//System.out.println("iBytesRead: "+iBytesRead);
-					if (iBytesRead == -1)
-					{
-						// EOF..
-						//System.out.println("Got EOF");
-						break;
-					}
-					else if (iBytesRead > 0)
+					if (iBytesRead > 0)
 					{
 					
 						sT = new String(bBuf, 0, iBytesRead);
@@ -1904,7 +1921,6 @@ public class SDKManager
 
 						sBOut.append(sT);
 
-						
 /*						
                         System.out.println("\n\n");
                         char cTChr;
@@ -1927,19 +1943,6 @@ public class SDKManager
 						{
 							// Reply for accept license agreement
 							System.out.println("===Sending reply===");
-/*                            
-                            if ( acceptLicensesCheckBox == null )
-                                System.out.println("acceptLicensesCheckBox null");
-                            else
-                                System.out.println("acceptLicensesCheckBox not null");
-/**/
-
-/*
-                            if ( finalAcceptLicensesCheckBox == null )
-                                System.out.println("finalAcceptLicensesCheckBox null");
-                            else
-                                System.out.println("finalAcceptLicensesCheckBox not null");
-/**/
 							if (((acceptLicensesCheckBox != null) && (acceptLicensesCheckBox.isSelected())) ||
 								((finalAcceptLicensesCheckBox != null) && (finalAcceptLicensesCheckBox.isSelected())))
 							{
@@ -1977,15 +1980,9 @@ public class SDKManager
 					}
 					else
 					{
-						iBytesRead = errorStream.read(bBuf, 0, 1024);
-						//System.out.println("iBytesRead: "+iBytesRead);
-						if (iBytesRead == -1)
-						{
-							// EOF..
-							//System.out.println("Got EOF");
-							break;
-						}
-						else
+						iBytesRead = errorStream.read(bBuf, 0, bBuf.length);
+						//System.out.println("(errorStream)iBytesRead: "+iBytesRead);
+                        if ( iBytesRead > 0 )
 						{
 							sT = new String(bBuf, 0, iBytesRead);
 							//System.out.println("(error)"+sT);
@@ -2028,6 +2025,16 @@ public class SDKManager
 								consoleTextArea.append(sT);
 						}
 					}
+					
+                    try
+                    {
+                        iExitVal = process.exitValue();
+                        //System.out.println("iExitVal: "+iExitVal);
+                        break;
+                    }
+                    catch (IllegalThreadStateException itse)
+                    {}
+					
 				} // End while..
 			}
 			catch (IOException ioe)
@@ -2119,12 +2126,7 @@ public class SDKManager
 					{
 					    lTime = System.currentTimeMillis();
 						sLine = inputBufferedReader.readLine();
-						if (sLine == null)
-						{
-							//System.out.println("sLine null, breaking..");
-							break;
-						}
-						else
+						if ( sLine != null )
 						{
 							//System.out.println("(input): '"+sLine+"'");
 
@@ -2132,7 +2134,7 @@ public class SDKManager
 							sB.append(sEnd);
 
 							sBOut.append(sB.toString());
-							
+
 /*							
                             System.out.println("\n\n");
                             char cTChr;
@@ -2148,6 +2150,9 @@ public class SDKManager
                             System.out.println("\n\n length(): "+sB.length());
 /**/
 
+                            // I use AWT's TextArea append() because it's responsive.
+                            // If you try to use Swing's doc.insertString() it's extremely
+                            // unresponsive and has nowhere near "real time" output..
 							if ((bHideOutput == false) || (sShowCommandResults.equals("true")))
 							{
 								consoleTextArea.append(sB.toString());
@@ -2158,12 +2163,7 @@ public class SDKManager
 					{
 					    lTime = System.currentTimeMillis();
 						sLine = errorBufferedReader.readLine();
-						if (sLine == null)
-						{
-							//System.out.println("sLine null, breaking..");
-							break;
-						}
-						else
+						if ( sLine != null )
 						{
 							//System.out.println("(error): '"+sLine+"'");
 							sB = new StringBuffer(sLine);
@@ -2762,6 +2762,16 @@ public class SDKManager
 			
 			if (CREATE_ADV.equals(sActionCommand))
 			{
+				// If Create Dialog is open, close it..
+				if ( createFrame != null )
+				{
+				    if ( createFrame.isVisible() )
+				    {
+                        createFrame.setVisible(false);
+                        createFrame.dispose();
+                    }
+                }
+			    
 				createThread = new CreateThread();
 				createThread.start();
 			}
@@ -2913,6 +2923,16 @@ public class SDKManager
 			}
 			else if (ACCEPT_LICENSES.equals(sActionCommand))
 			{
+				// If Accept Licenses Dialog is open, close it..
+				if ( acceptLicensesFrame != null )
+				{
+				    if ( acceptLicensesFrame.isVisible() )
+				    {
+                        acceptLicensesFrame.setVisible(false);
+                        acceptLicensesFrame.dispose();
+                    }
+                }
+			    
 				RefreshProperties();
 				acceptLicensesDialog();
 			}
@@ -2942,7 +2962,7 @@ public class SDKManager
 
 					sb.append(";sdkmanager --licenses ");
 
-					if (sUseHTTPS.equals("false"))
+					if ( (sUseHTTPS != null) && (sUseHTTPS.equals("false")) )
 					{
 						sb.append("--no_https ");
 					}
@@ -2971,7 +2991,7 @@ public class SDKManager
 
 					sb.append("&&sdkmanager --licenses ");
 
-					if (sUseHTTPS.equals("false"))
+					if ( (sUseHTTPS != null) && (sUseHTTPS.equals("false")) )
 					{
 						sb.append("--no_https ");
 					}
@@ -3007,6 +3027,16 @@ public class SDKManager
 			else if (AVDS.equals(sActionCommand))
 			{
 				//System.out.println("\nAVDS");
+				// If AVDs Dialog is open, close it..
+				if ( avdsFrame != null )
+				{
+				    if ( avdsFrame.isVisible() )
+				    {
+                        avdsFrame.setVisible(false);
+                        avdsFrame.dispose();
+                    }
+                }
+				
 				aVDsThread = new AVDsThread();
 				aVDsThread.start();
 			}
@@ -3415,6 +3445,16 @@ public class SDKManager
 			else if ( PACKAGES.equals(sActionCommand) )
 			{
 				//System.out.println("\nPACKAGES");
+				// If Package Dialog is open, close it..
+				if ( packageFrame != null )
+				{
+				    if ( packageFrame.isVisible() )
+				    {
+                        packageFrame.setVisible(false);
+                        packageFrame.dispose();
+                    }
+                }
+				
 				packagesThread = new PackagesThread();
 				packagesThread.start();
 
@@ -3463,7 +3503,7 @@ public class SDKManager
 					sb.append(sToolsDir);
 					sb.append("/bin");
 					//sb.append(";%PATH%");
-
+					
 					sb.append("&&SET JAVA_HOME=");
 					sb.append(sJavaPath);
 
@@ -3475,7 +3515,7 @@ public class SDKManager
 
 					sb.append("&&sdkmanager ");
 				}
-				
+
 				bUpdateSelected = updateCheckBox.isSelected();
 				//System.out.println("bUpdateSelected: "+bUpdateSelected);
 				if ( bUpdateSelected )
@@ -3511,11 +3551,11 @@ public class SDKManager
 					}
 				}
 
-				if (sUseHTTPS.equals("false"))
+				if ( (sUseHTTPS != null) && (sUseHTTPS.equals("false")) )
 				{
 					sb.append("--no_https ");
 				}
-
+				
 				//System.out.println("bDoChannels: "+bDoChannels);
 				if ( bDoChannels )
 				{
@@ -3531,7 +3571,9 @@ public class SDKManager
                             sb.append("--channel=3 ");
                     }
 				}
-
+				
+				//sb.append("--include_obsolete ");
+				
 				sb.append("--sdk_root=");
 				sb.append(sSDKPath);
 

@@ -28,11 +28,17 @@ please follow these steps in order:
 When installing the latest SDK:
 
 Trying to install certain Packages can fail with:
-"Dependent package with key emulator not found"
+"Warning: Dependant package with key emulator not found!"
 
-So, until I can get it to work from within the app,
-you'll need to run this from the command line to load the "tools" Package
-which will help further Package installs to go smoothly:
+The 'tools' and 'emulator' directories are needed for the rest of the Package
+installs to go smoothly.
+
+Try to do this through the app first:
+Set "include_obsolete" in config.properties to 'true', list the Packages,
+select the 'tools' Package, check "Accept licenses" and hit Submit.
+If it succeeded, set "include_obsolete" back to 'false'.
+
+If that failed, do it manually from the command line:
 
 cd [SDK Path]\cmdline-tools\bin                 Like:  cd C:\android-sdk-new\cmdline-tools\bin
 sdkmanager "tools" --sdk_root=[SDK Path]
@@ -47,8 +53,11 @@ and hit Submit.
 Then select the highest 'build-tools;..' level that you'd like to use,
 like 'build-tools;31.0.0-rc1', check "Accept licenses" and hit Submit.
 
-Then select 'platform-tools', check "Accept licenses" and hit Submit.
+Check if the 'platform-tools' directory was created, from 'tools' above,
+if it's there jump to below to finish accepting the licenses,
+otherwise select 'platform-tools', check "Accept licenses" and hit Submit.
 
+Finish accepting licenses:
 Then select Manage SDK->Accept Licenses, check "Accept Licenses" and hit Submit.
 
 This will ensure that many essential things, like the emulator,
@@ -72,12 +81,12 @@ The ones in gold are packages that are installed and that an update is available
 It is recommended that you only install up to two packages at a time.
 
 If there are a large number of packages to update,
-or doing "Update all" has issues, it might be faster to manually
+or doing "Update all installed packages" has issues, it might be faster to manually
 do --update from the command line.
 
 *****************************************************************
 When you have finished adding any packages, always select:
-Manage SDK->Accept Licenses     and check the 'Accept Licenses' checkbox
+Manage SDK->Accept Licenses     and check the 'Accept Licenses' checkbox, and hit Submit,
 to be sure that all your licenses have been accepted.
 *****************************************************************
 
@@ -103,11 +112,15 @@ it will do an Enter for the default choice for the:
 
 prompt.
 
+-- Note --
+    When you do:    Manage SDK->Accept Licenses
+    it might appear that the last 'Accept?(y/N)'
+    prompt did not succeed, but it did, and you might have to
+    run   Manage SDK->Accept Licenses
+    a second time to see 'All SDK package licenses accepted.'
+    I'll try to improve that.
 
 
-SDK Manager 1.0.8:
-    Tried to fix issue with not finding AVDs.
-    Added -memory option.
     
 SDK Manager 1.0.9:
     It now tries to use the 'cmdline-tools' directory if available.
@@ -117,7 +130,10 @@ SDK Manager 1.0.9:
 SDK Manager 1.1.0:
     Fixed issue with 'cmdline-tools' sub-directories.
     
-
+SDK Manager 1.1.1:
+    Many small improvements.
+    
+    
 Please let me know of any issues you have so that
 I can try to fix it.
 
