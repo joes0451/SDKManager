@@ -1839,8 +1839,8 @@ public class SDKManager
 			String sT = "";
 			StringBuffer sBOut = null;
 			StringBuffer sB;
-			byte[] bBuf = new byte[1024];
-			//byte[] bBuf = new byte[2048];
+			boolean bHitEOF = false;
+			byte[] bBuf = new byte[2048];
 
 			byte[] bZd = {(byte) 0x0d};
 			String sZeroD = new String(bZd);
@@ -1877,10 +1877,15 @@ public class SDKManager
 			{
 				while (true)
 				{
+				    //System.out.println("--TOP--");
 					iBytesRead = 0;
 					iBytesRead = inputStream.read(bBuf, 0, bBuf.length);
-					//System.out.println("iBytesRead: "+iBytesRead);
-					if (iBytesRead > 0)
+					//System.out.println("(inputStream)iBytesRead: "+iBytesRead);
+					if ( iBytesRead == -1 )
+					{
+					    bHitEOF = true;
+					}
+					else if ( iBytesRead > 0 )
 					{
 					
 						sT = new String(bBuf, 0, iBytesRead);
@@ -1936,10 +1941,10 @@ public class SDKManager
                         System.out.println("\n\n");
 /**/
 
-						if (bHideOutput == false)
+						if ( bHideOutput == false )
 							consoleTextArea.append(sT);
 
-						if (sBOut.substring(sBOut.length() - 10, sBOut.length() - 1).contains("(y/N)"))
+						if ( sBOut.substring(sBOut.length() - 10, sBOut.length() - 1).contains("(y/N)") )
 						{
 							// Reply for accept license agreement
 							System.out.println("===Sending reply===");
@@ -1982,7 +1987,12 @@ public class SDKManager
 					{
 						iBytesRead = errorStream.read(bBuf, 0, bBuf.length);
 						//System.out.println("(errorStream)iBytesRead: "+iBytesRead);
-                        if ( iBytesRead > 0 )
+                        if (iBytesRead == -1)
+                        {
+                            // EOF..
+                            bHitEOF = true;
+                        }
+						else if ( iBytesRead > 0 )
 						{
 							sT = new String(bBuf, 0, iBytesRead);
 							//System.out.println("(error)"+sT);
@@ -2025,17 +2035,21 @@ public class SDKManager
 								consoleTextArea.append(sT);
 						}
 					}
-					
-                    try
+
+                    if ( bHitEOF )
                     {
-                        iExitVal = process.exitValue();
-                        //System.out.println("iExitVal: "+iExitVal);
-                        break;
+                        try
+                        {
+                            iExitVal = process.exitValue();
+                            //System.out.println("iExitVal: "+iExitVal);
+                            break;
+                        }
+                        catch (IllegalThreadStateException itse)
+                        {}
                     }
-                    catch (IllegalThreadStateException itse)
-                    {}
 					
 				} // End while..
+				//System.out.println("Dropped out");
 			}
 			catch (IOException ioe)
 			{

@@ -24,36 +24,15 @@ Set the name of the new Android SDK directory in config.properties.
 !! To ensure that the SDK has the best chance of being properly set up
 please follow these steps in order:
 
-******************************************************************************
-When installing the latest SDK:
-
-Trying to install certain Packages can fail with:
-"Warning: Dependant package with key emulator not found!"
-
-The 'tools' and 'emulator' directories are needed for the rest of the Package
-installs to go smoothly.
-
-Try to do this through the app first:
-Set "include_obsolete" in config.properties to 'true', list the Packages,
-select the 'tools' Package, check "Accept licenses" and hit Submit.
-If it succeeded, set "include_obsolete" back to 'false'.
-
-If that failed, do it manually from the command line:
-
-cd [SDK Path]\cmdline-tools\bin                 Like:  cd C:\android-sdk-new\cmdline-tools\bin
-sdkmanager "tools" --sdk_root=[SDK Path]
-
-Enter 'y' to agree to the license.
-******************************************************************************
+Select 'Manage SDK->Packages' and select the highest 'build-tools;..' level
+that you'd like to use, like 'build-tools;31.0.0-rc3', check "Accept licenses"
+and hit Submit.
 
 Select 'Manage SDK->Packages' and select the highest 'platforms;..' level
 that you'd like to use, like 'platforms;android-30', check "Accept licenses"
 and hit Submit.
 
-Then select the highest 'build-tools;..' level that you'd like to use,
-like 'build-tools;31.0.0-rc1', check "Accept licenses" and hit Submit.
-
-Check if the 'platform-tools' directory was created, from 'tools' above,
+Check if the 'platform-tools' directory was created, from above,
 if it's there jump to below to finish accepting the licenses,
 otherwise select 'platform-tools', check "Accept licenses" and hit Submit.
 
@@ -111,14 +90,6 @@ it will do an Enter for the default choice for the:
 'Do you wish to create a custom hardware profile? [no]'
 
 prompt.
-
--- Note --
-    When you do:    Manage SDK->Accept Licenses
-    it might appear that the last 'Accept?(y/N)'
-    prompt did not succeed, but it did, and you might have to
-    run   Manage SDK->Accept Licenses
-    a second time to see 'All SDK package licenses accepted.'
-    I'll try to improve that.
 
 
     
