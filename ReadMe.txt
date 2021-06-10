@@ -19,27 +19,35 @@ version of the Android SDK tools package.
 
 - Unzip into your directory.
 
-Set the name of the new Android SDK directory in config.properties.
+Set the path of the new Android SDK directory, 'android_sdk_path', in config.properties.
 
 !! To ensure that the SDK has the best chance of being properly set up
 please follow these steps in order:
 
+Run SDK Manager.
+
 Select 'Manage SDK->Packages' and select the highest 'build-tools;..' level
 that you'd like to use, like 'build-tools;31.0.0-rc3', check "Accept licenses"
-and hit Submit.
+and hit Submit. This should set up the 'emulator' and 'tools' directories/packages.
+
+** Note **
+    If you get: 'Warning: Dependant package with key emulator not found!'
+    while trying to install a Package, and you don't have the 'tools' directory yet,
+    set 'include_obsolete' in config.properties to 'true', list the Packages again and
+    select 'tools', check "Accept licenses" and hit Submit.
 
 Select 'Manage SDK->Packages' and select the highest 'platforms;..' level
 that you'd like to use, like 'platforms;android-30', check "Accept licenses"
 and hit Submit.
 
-Check if the 'platform-tools' directory was created, from above,
+Select 'Manage SDK->Packages' and check if the 'platform-tools' package was installed, from above,
 if it's there jump to below to finish accepting the licenses,
 otherwise select 'platform-tools', check "Accept licenses" and hit Submit.
 
 Finish accepting licenses:
 Then select Manage SDK->Accept Licenses, check "Accept Licenses" and hit Submit.
 
-This will ensure that many essential things, like the emulator,
+This will ensure that many essential things, like the 'emulator',
 'platforms' and 'tools' directories, are properly set up and all the licenses are accepted.
 
 The biggest potential issue that can happen is that your firewall
@@ -81,7 +89,7 @@ to run with the Emulator.
 When you are selecting system-images packages for AVDs, check that the 'system-images' directory
 has both 'kernel-qemu' and 'kernel-ranchu' files.  If it only has 'kernel-qemu'
 you can try to download the 'google_apis' version which will usually have both.
-This gives it a better chance of launching.
+Having both gives it a better chance of launching.
 
 After you check the "Accept licenses" checkbox, licenses
 will automatically be accepted, and when an AVD is created
@@ -92,20 +100,19 @@ it will do an Enter for the default choice for the:
 prompt.
 
 
-    
-SDK Manager 1.0.9:
-    It now tries to use the 'cmdline-tools' directory if available.
-    Now shows the Version number in the Package list and the
-        new Version if there is an Update available.
-
-SDK Manager 1.1.0:
-    Fixed issue with 'cmdline-tools' sub-directories.
-    
 SDK Manager 1.1.1:
     Many small improvements.
     
+SDK Manager 1.1.2:
+    Improved console output to show anything from the errorStream.
+
+SDK Manager 1.1.3:  
+    Fixed multiple 'emulator' listings in package list.
+    Improved AVD operations.
+    New Emulator options.
     
-Please let me know of any issues you have so that
+    
+Please let me know of any issues, or options you want added, so that
 I can try to fix it.
 
 joes0451@outlook.com

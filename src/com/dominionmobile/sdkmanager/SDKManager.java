@@ -168,6 +168,9 @@ public class SDKManager
 	static volatile String sQuickBoot;
 	static volatile String sMemory;
 	static volatile String sToolsEntry;
+	static volatile String sDisableJNIChecks;
+	static volatile String sSELinuxSecurity;
+	static volatile String sDisableVMAcceleration;
 
 	static volatile boolean bBreakOut;
 	static volatile boolean bIncludeObsolete;
@@ -398,7 +401,7 @@ public class SDKManager
 
 			// Seems to need some more time..	
 			// Wait for Thread to finish..
-			while (true)
+			while ( true )
 			{
 				try
 				{
@@ -408,10 +411,11 @@ public class SDKManager
 				{
 				}
 
-				if (bCommandFinished)
+				if ( bCommandFinished )
 					break;
 			}
 
+			//System.out.println("Dropped out");
 /*                
             // Wait for Thread to finish..
             try
@@ -448,9 +452,9 @@ public class SDKManager
 						iLoc4 = commandResultS.indexOf("Name:", iLoc2);
 
 						if ( (iLoc8 != -1) && (iLoc4 >= iLoc8) )
-							break;
+							break;    // Past the end
 
-						if ( iLoc4 != -1 )
+						if ( iLoc4 != -1 )    // "Name:"
 						{
 							iLoc4 += 6;
 							iStart = iLoc4;
@@ -467,20 +471,26 @@ public class SDKManager
 						    break;
 
 						iLoc3 = commandResultS.indexOf("---", iLoc2);
-						iLoc4 = commandResultS.indexOf("Device:", iLoc2);
-						if ((iLoc4<iLoc3) && (iLoc4 != -1))
+						
+						if ( (iLoc2 + 16) < commandResultS.length() )
 						{
-							iLoc4 += 8;
-							iStart = iLoc4;
-							iLoc6 = commandResultS.indexOf("Path:", iLoc4);
-							if (iLoc6 != -1)
-							{
-								sDevice = commandResultS.substring(iStart, iLoc6);
-								sDevice = sDevice.trim();
-								//System.out.println("sDevice: '"+sDevice+"'");
-								aVDInfo.sDevice = sDevice;
-							}
-						}
+                            iLoc4 = commandResultS.indexOf("Device:", iLoc2 + 16);    // Virtual Devices:
+                            //if (( iLoc4 < iLoc3 ) && (iLoc4 != -1))
+                            //if (( (iLoc3 != -1) && (iLoc4 < iLoc3) ) && (iLoc4 != -1))
+                            if ( iLoc4 != -1 )
+                            {
+                                iLoc4 += 8;
+                                iStart = iLoc4;
+                                iLoc6 = commandResultS.indexOf("Path:", iLoc4);
+                                if (iLoc6 != -1)
+                                {
+                                    sDevice = commandResultS.substring(iStart, iLoc6);
+                                    sDevice = sDevice.trim();
+                                    //System.out.println("sDevice: '"+sDevice+"'");
+                                    aVDInfo.sDevice = sDevice;
+                                }
+                            }
+                        }
 
 						iLoc4 = commandResultS.indexOf("Path:", iLoc2);
 						if (iLoc4 != -1)
@@ -527,12 +537,33 @@ public class SDKManager
 							}
 						}
 
-						AVDsAr.add((AVDInfo) aVDInfo);
-
 						// Next..
+						//System.out.println("(Next)iLoc4: "+iLoc4);
+						if ( iLoc4 == -1 )
+						{
+						    // No next tag..
+						    // Force it to fail..
+						    AVDsAr = new ArrayList();
+						    break;
+						}
+						else
+						{
+                            if ( aVDInfo != null )
+                                AVDsAr.add((AVDInfo)aVDInfo);
+						}
+						
 						iLoc2 = iLoc4;
 
 					} // End while..
+
+/*					
+					if ( AVDsAr == null )
+					    System.out.println("AVDsAr null");
+					else
+					    System.out.println("AVDsAr.size(): "+AVDsAr.size());
+/**/
+
+					//System.out.println("Dropped out");
 				}
 			}
 
@@ -540,6 +571,7 @@ public class SDKManager
 				operationRequestLatch.countDown();
 
 			bGetAVDFinished = true;
+			//System.out.println("Exiting GetAVDsBgThread");
 		}
 	} //}}}
 
@@ -664,6 +696,7 @@ public class SDKManager
 	{
 		public void run()
 		{
+		    //System.out.println("\nAVDsThread run()");
 			AVDInfo aVDInfo;
 			int iSz = 0;
 			int iLength = 0;
@@ -725,7 +758,12 @@ public class SDKManager
 				{
 					aVDInfo = (AVDInfo) AVDsAr.get(iJ);
 					sPath = aVDInfo.sPath;
-					iLength = sPath.length();
+					// sPath was null
+
+                    iLength = 0;
+                    if ( (sPath != null) && (sPath.length() > 0) )				
+                        iLength = sPath.length();
+                    
 					if (iLength > iLongest)
 						iLongest = iLength;
 
@@ -747,7 +785,9 @@ public class SDKManager
 				// No ADVs found, put up Dialog..
 				JOptionPane.showMessageDialog(
 					mainJFrame,
-					"No AVDs found.",
+					//"No AVDs found.",
+					//"No AVDs, without errors, found.",
+					"Data error or no AVDs found.",
 					"AVDs",
 					JOptionPane.ERROR_MESSAGE);
 			}
@@ -1044,6 +1084,7 @@ public class SDKManager
 				// Get available updates..
 				if ( bFoundUpdates )
 				{
+				    //System.out.println("Available Updates");
 					iLoc8 = iLoc4;
 					for ( int iX = 0; iX < 3; iX++ )
 					{
@@ -1057,6 +1098,7 @@ public class SDKManager
 
 					while (true)
 					{
+					    //System.out.println("--TOP--");
 						for (; !Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++);
 						sUpdate = commandResultS.substring(iStart, iLoc7);
 						//System.out.println("sUpdate: '"+sUpdate+"'");
@@ -1102,10 +1144,13 @@ public class SDKManager
 						sB.append(sUpdateVersion);
 						
 						UpdateAr.add((String)sB.toString());
-						//System.out.println("(Final Update)sB: '"+sB.toString()+"'");
+						//System.out.println("(add())sB: '"+sB.toString()+"'");
 						
 						if ( sUpdate.equals("emulator") )
+						{
 						    sEmulatorEntry = sB.toString();
+						    //System.out.println("sEmulatorEntry: '"+sEmulatorEntry+"'");
+						}
 
 						// Next..
 						iLoc7 = commandResultS.indexOf(sStart, iLoc7); // 0x0a 0x20 0x20
@@ -1129,6 +1174,7 @@ public class SDKManager
 					iLoc7 = iLoc6;
 					for ( int iJ = 0;; iJ++ )
 					{
+					    //System.out.println("==TOP==");
 						iLoc7 = commandResultS.indexOf(sStart, iLoc7);
 						if (iJ == 0)
 						{
@@ -1157,8 +1203,6 @@ public class SDKManager
 							// in the list of Packages, so detect it here, to add..
 							if ( sInstalled.equals("emulator") )
 							{
-							    bAddEmulator = true;
-                                    
                                 // Get version..
                                 for ( ; Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
                                 iLoc7 += 2;
@@ -1379,6 +1423,7 @@ public class SDKManager
 							
 							if ( sPackage.startsWith("extras;") )
 							{
+							    //System.out.println("bAddEmulator: "+bAddEmulator);
 							    if ( bAddEmulator )
 							    {
 							        //System.out.println("(3PackageAr.add()): '"+sEmulatorEntry+"'");
@@ -1626,6 +1671,9 @@ public class SDKManager
 			sKernel = processPath(prop.getProperty("kernel"));
 			sQuickBoot = processPath(prop.getProperty("quick_boot"));
 			sMemory = processPath(prop.getProperty("memory"));
+			sDisableJNIChecks = processPath(prop.getProperty("disable_jni_checks"));
+			sSELinuxSecurity = processPath(prop.getProperty("selinux_security"));
+			sDisableVMAcceleration = processPath(prop.getProperty("disable_vm_acceleration"));
 		}
 		catch (IOException ioe)
 		{
@@ -1839,7 +1887,6 @@ public class SDKManager
 			String sT = "";
 			StringBuffer sBOut = null;
 			StringBuffer sB;
-			boolean bHitEOF = false;
 			byte[] bBuf = new byte[2048];
 
 			byte[] bZd = {(byte) 0x0d};
@@ -1852,6 +1899,7 @@ public class SDKManager
 			int iBytesRead = 0;
 			int iLoc2 = 0;
 			int iExitVal = 0;
+			int iNoBytesCount = 0;
 
 			try
 			{
@@ -1881,11 +1929,7 @@ public class SDKManager
 					iBytesRead = 0;
 					iBytesRead = inputStream.read(bBuf, 0, bBuf.length);
 					//System.out.println("(inputStream)iBytesRead: "+iBytesRead);
-					if ( iBytesRead == -1 )
-					{
-					    bHitEOF = true;
-					}
-					else if ( iBytesRead > 0 )
+					if ( iBytesRead > 0 ) 
 					{
 					
 						sT = new String(bBuf, 0, iBytesRead);
@@ -1987,12 +2031,7 @@ public class SDKManager
 					{
 						iBytesRead = errorStream.read(bBuf, 0, bBuf.length);
 						//System.out.println("(errorStream)iBytesRead: "+iBytesRead);
-                        if (iBytesRead == -1)
-                        {
-                            // EOF..
-                            bHitEOF = true;
-                        }
-						else if ( iBytesRead > 0 )
+						if ( iBytesRead > 0 )
 						{
 							sT = new String(bBuf, 0, iBytesRead);
 							//System.out.println("(error)"+sT);
@@ -2004,7 +2043,7 @@ public class SDKManager
 								iLoc2 = sB.indexOf(sZeroD, iLoc2);
 								if (iLoc2 != -1)
 								{
-									if ((iLoc2 + 1<sB.length()))
+									if ( ((iLoc2 + 1) < sB.length()) )
 									{
 										if (sB.charAt(iLoc2 + 1) != (char) 0x0a)
 										{
@@ -2034,9 +2073,15 @@ public class SDKManager
 							if (bHideOutput == false)
 								consoleTextArea.append(sT);
 						}
+						else
+						{
+						    iNoBytesCount++;
+						}
 					}
 
-                    if ( bHitEOF )
+                    // Give it enough time to output
+                    // anything from the errorStream..					
+                    if ( iNoBytesCount > 10 )
                     {
                         try
                         {
@@ -2047,7 +2092,6 @@ public class SDKManager
                         catch (IllegalThreadStateException itse)
                         {}
                     }
-					
 				} // End while..
 				//System.out.println("Dropped out");
 			}
@@ -2134,9 +2178,10 @@ public class SDKManager
 
 				consoleTextArea.setText("");
 
-				while (true)
+				//System.out.println("Above top");
+				while ( true )
 				{
-					if (inputBufferedReader.ready())
+					if ( inputBufferedReader.ready() )
 					{
 					    lTime = System.currentTimeMillis();
 						sLine = inputBufferedReader.readLine();
@@ -2196,7 +2241,10 @@ public class SDKManager
 						// Didn't get anything..
 						lTime2 = System.currentTimeMillis();
 						if ( (bAVDSubmit) && (lTime > 0) && (lTime2 - lTime > 3000) )
+						{
+						    //System.out.println("Too long, breaking");
 						    break;
+						}
 						
 						try
 						{
@@ -3233,7 +3281,7 @@ public class SDKManager
 					if ( (sUseForce32Bit != null) && (sUseForce32Bit.length() > 0) )
 					{
 					    if ( sUseForce32Bit.equals("true") )
-					        sb.append(" -force-32bit ");
+					        sb.append(" -force-32bit");
 					}
 					
 					if ( (sMemory != null) && (sMemory.length() > 0) )
@@ -3358,6 +3406,29 @@ public class SDKManager
 					        }
 					    }
 					}
+					
+					if ( (sDisableJNIChecks != null) && (sDisableJNIChecks.length() > 0) )
+					{
+					    if ( sDisableJNIChecks.equals("true") )
+					        sb.append(" -nojni");
+					}
+					
+					if ( (sSELinuxSecurity != null) && (sSELinuxSecurity.length() > 0) )
+					{
+					    sSELinuxSecurity = sSELinuxSecurity.trim();
+					    if ( sSELinuxSecurity.equals("disabled") )
+					        sb.append(" -selinux disabled");
+					    else if ( sSELinuxSecurity.equals("permissive") )
+					        sb.append(" -selinux permissive");
+					}
+
+					if ( (sDisableVMAcceleration != null) && (sDisableVMAcceleration.length() > 0) )
+					{
+					    sDisableVMAcceleration = sDisableVMAcceleration.trim();
+					    if ( sDisableVMAcceleration.equals("true") )
+					        sb.append(" -no-accel");
+					}
+
 					
 					if (iOS == WINDOWS)
 						sb.append("\n");
