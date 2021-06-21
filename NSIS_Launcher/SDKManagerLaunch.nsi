@@ -10,7 +10,7 @@ SilentInstall silent
 AutoCloseWindow true
 ShowInstDetails nevershow
  
-!define CLASSPATH ".;SDKManager-1.1.3.jar"
+!define CLASSPATH ".;SDKManager-1.1.4.jar"
 !define CLASS "com.dominionmobile.sdkmanager.SDKManager"
 
 Section ""

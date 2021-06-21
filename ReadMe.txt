@@ -103,16 +103,17 @@ prompt.
 SDK Manager 1.1.1:
     Many small improvements.
     
-SDK Manager 1.1.2:
-    Improved console output to show anything from the errorStream.
-
 SDK Manager 1.1.3:  
     Fixed multiple 'emulator' listings in package list.
     Improved AVD operations.
     New Emulator options.
-    
-    
-Please let me know of any issues, or options you want added, so that
+
+SDK Manager 1.1.4:
+    Improved updating packages.
+    New Emulator options.
+
+
+Please let me know of any issues so that
 I can try to fix it.
 
 joes0451@outlook.com

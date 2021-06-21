@@ -171,6 +171,8 @@ public class SDKManager
 	static volatile String sDisableJNIChecks;
 	static volatile String sSELinuxSecurity;
 	static volatile String sDisableVMAcceleration;
+	static volatile String sNoCachePartition;
+	static volatile String sWipeData;
 
 	static volatile boolean bBreakOut;
 	static volatile boolean bIncludeObsolete;
@@ -286,7 +288,7 @@ public class SDKManager
                 for ( int iZ = 0; iZ < dirList.length; iZ++ )
                 {
                     //System.out.println("["+iZ+"]: '"+dirList[iZ]+"'");
-                    if ( dirList[iZ].equals("bin") || dirList[iZ].equals("lib") ||
+                    if ( dirList[iZ].equals("bin") || dirList[iZ].equals("lib") ||      // Ignore 'bin' and 'lib' directories
                             dirList[iZ].equals("NOTICE.txt") || dirList[iZ].equals("source.properties") )
                         continue;
                         
@@ -294,6 +296,7 @@ public class SDKManager
                 }
                 
                 //System.out.println("sLastDir: '"+sLastDir+"'");
+                // Like:  'latest'
                 if ( sLastDir.equals("") )
                     sToolsDir = "cmdline-tools";    // No version directory..
                 else
@@ -303,7 +306,7 @@ public class SDKManager
                     sB2.append("/");
                     sB2.append(sLastDir);
                     
-                    sToolsDir = sB2.toString();
+                    sToolsDir = sB2.toString();     // Like:  'cmdline-tools/latest'
                 }
 		    }
 		}
@@ -1674,6 +1677,9 @@ public class SDKManager
 			sDisableJNIChecks = processPath(prop.getProperty("disable_jni_checks"));
 			sSELinuxSecurity = processPath(prop.getProperty("selinux_security"));
 			sDisableVMAcceleration = processPath(prop.getProperty("disable_vm_acceleration"));
+			sNoCachePartition = processPath(prop.getProperty("no_cache_partition"));
+			sWipeData = processPath(prop.getProperty("wipe_data"));
+			
 		}
 		catch (IOException ioe)
 		{
@@ -1877,7 +1883,7 @@ public class SDKManager
 	{
 		public void run()
 		{
-			//System.out.println("== InteractiveCommand run() ==");
+			//System.out.println("\n\n== InteractiveCommand run() ==");
 			//System.out.println("sInternalCommand: '"+sInternalCommand+"'");
 			ProcessBuilder processBuilder;
 			Process process = null;
@@ -1915,6 +1921,13 @@ public class SDKManager
 			catch (IOException ioe)
 			{}
 
+/*
+			if ( process == null )
+			    System.out.println("process null");
+			else
+			    System.out.println("process not null");
+/**/			
+			
 			inputStream = process.getInputStream();
 			errorStream = process.getErrorStream();
 			outputStream = process.getOutputStream();
@@ -1934,6 +1947,12 @@ public class SDKManager
 					
 						sT = new String(bBuf, 0, iBytesRead);
 						//System.out.println("(input)"+sT);
+/*						
+						if ( sT == null )
+						    System.out.println("sT null");
+						else
+						    System.out.println("sT: '"+sT+"'");
+/**/
 
 						sB = new StringBuffer(sT);
 						iLoc2 = 0;
@@ -1942,7 +1961,7 @@ public class SDKManager
 							iLoc2 = sB.indexOf(sZeroD, iLoc2);
 							if (iLoc2 != -1)
 							{
-								if ((iLoc2 + 1<sB.length()))
+								if ( ((iLoc2 + 1) >= 0) && ((iLoc2 + 1) < sB.length()) )
 								{
 									if (sB.charAt(iLoc2 + 1) != (char) 0x0a)
 									{
@@ -1952,8 +1971,11 @@ public class SDKManager
 								}
 								else
 								{
-									sB = sB.deleteCharAt(iLoc2);
-									sB = sB.insert(iLoc2, sZeroDZeroA);
+								    if ( (iLoc2 >= 0) && (iLoc2 < sB.length()) )
+                                    {
+                                        sB = sB.deleteCharAt(iLoc2);
+                                        sB = sB.insert(iLoc2, sZeroDZeroA);
+                                    }
 								}
 							}
 							else
@@ -1970,6 +1992,7 @@ public class SDKManager
 
 						sBOut.append(sT);
 
+						
 /*						
                         System.out.println("\n\n");
                         char cTChr;
@@ -1988,44 +2011,47 @@ public class SDKManager
 						if ( bHideOutput == false )
 							consoleTextArea.append(sT);
 
-						if ( sBOut.substring(sBOut.length() - 10, sBOut.length() - 1).contains("(y/N)") )
+						if ( ((sBOut.length() - 10) >= 0) && ((sBOut.length() - 1) >= 0) )
 						{
-							// Reply for accept license agreement
-							System.out.println("===Sending reply===");
-							if (((acceptLicensesCheckBox != null) && (acceptLicensesCheckBox.isSelected())) ||
-								((finalAcceptLicensesCheckBox != null) && (finalAcceptLicensesCheckBox.isSelected())))
-							{
-								outputStream.write(bReply); // 'y'
-							}
-							else
-							{
-								outputStream.write(bReplyDA); // Enter (N)
-							}
-
-							outputStream.flush();
-
-							try
-							{
-								Thread.sleep(250);
-							}
-							catch (InterruptedException ie)
-							{}
-
-						}
-						else if (sBOut.substring(sBOut.length() - 10, sBOut.length() - 1).contains("[no]"))
-						{
-							// Reply for create avd:  'Do you wish to create a custom hardware profile? [no]'
-							System.out.println("===Sending reply===");
-							outputStream.write(bReplyDA); // Enter
-							outputStream.flush();
-
-							try
-							{
-								Thread.sleep(250);
-							}
-							catch (InterruptedException ie)
-							{}
-						}
+                            if ( sBOut.substring(sBOut.length() - 10, sBOut.length() - 1).contains("(y/N)") )
+                            {
+                                // Reply for accept license agreement
+                                System.out.println("===Sending reply===");
+                                if (((acceptLicensesCheckBox != null) && (acceptLicensesCheckBox.isSelected())) ||
+                                    ((finalAcceptLicensesCheckBox != null) && (finalAcceptLicensesCheckBox.isSelected())))
+                                {
+                                    outputStream.write(bReply); // 'y'
+                                }
+                                else
+                                {
+                                    outputStream.write(bReplyDA); // Enter (N)
+                                }
+    
+                                outputStream.flush();
+    
+                                try
+                                {
+                                    Thread.sleep(250);
+                                }
+                                catch (InterruptedException ie)
+                                {}
+    
+                            }
+                            else if (sBOut.substring(sBOut.length() - 10, sBOut.length() - 1).contains("[no]"))
+                            {
+                                // Reply for create avd:  'Do you wish to create a custom hardware profile? [no]'
+                                System.out.println("===Sending reply===");
+                                outputStream.write(bReplyDA); // Enter
+                                outputStream.flush();
+    
+                                try
+                                {
+                                    Thread.sleep(250);
+                                }
+                                catch (InterruptedException ie)
+                                {}
+                            }
+                        }
 					}
 					else
 					{
@@ -2116,11 +2142,12 @@ public class SDKManager
 				{}
 			}
 
+			//System.out.println("\nExiting InteractiveCommand");
 			process.destroy();
 
 			commandResultS = sBOut.toString();
 
-			if (interactiveRequestLatch != null)
+			if ( interactiveRequestLatch != null )
 				interactiveRequestLatch.countDown();
 
 		}
@@ -2259,7 +2286,7 @@ public class SDKManager
 			}
 			catch (IOException ioe)
 			{
-				System.out.println("InteractiveCommandBgThread Exception:");
+				System.out.println("CommandBgThread Exception:");
 				ioe.printStackTrace();
 			}
 			finally
@@ -3136,7 +3163,10 @@ public class SDKManager
 /**/				
 				iAr = avdJList.getSelectedIndices();
 				aVDInfo = (AVDInfo)AVDsAr.get(iAr[0]);
-				sBasedOn = aVDInfo.sBasedOn;
+				sBasedOn = "";
+				if ( aVDInfo != null )
+				    sBasedOn = aVDInfo.sBasedOn;
+				
 				iLoc2 = sBasedOn.indexOf("Tag/ABI:");
 				if ( iLoc2 != -1 )
 				{
@@ -3429,6 +3459,19 @@ public class SDKManager
 					        sb.append(" -no-accel");
 					}
 
+					if ( (sNoCachePartition != null) && (sNoCachePartition.length() > 0) )
+					{
+					    sNoCachePartition = sNoCachePartition.trim();
+					    if ( sNoCachePartition.equals("true") )
+					        sb.append(" -nocache");
+					}
+
+					if ( (sWipeData != null) && (sWipeData.length() > 0) )
+					{
+					    sWipeData = sWipeData.trim();
+					    if ( sWipeData.equals("true") )
+					        sb.append(" -wipe-data");
+					}
 					
 					if (iOS == WINDOWS)
 						sb.append("\n");
