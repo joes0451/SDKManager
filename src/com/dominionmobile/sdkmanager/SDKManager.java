@@ -134,7 +134,7 @@ public class SDKManager
 	private static JScrollPane avdScrollPane;
 	private static JList avdJList;
 	private static JList packageJList;
-	private static JList sIJList;
+	private static JList sIJList;    // system-images
 	private static JList devicesJList;
 
 	private JLabel statusLabel;
@@ -184,11 +184,13 @@ public class SDKManager
 	static volatile boolean bGetAVDFinished;
 	static volatile boolean bAVDSubmit;
 	static volatile boolean bAddTools;
+	static volatile boolean bGetPackagesFinished;
 
 	static volatile int iOS;
 	static volatile int iFontSize;
 	static volatile int iAdvSelectedIndex;
 	static volatile int iLongest;
+	static volatile int iPrevLength;
 
 	static ArrayList DevicesAr;
 	static ArrayList SystemImagesAr;
@@ -774,6 +776,7 @@ public class SDKManager
 				}
 
 				avdJList = new JList(tSa);
+				avdJList.setFont(new Font("Monospaced", Font.BOLD, 12));
 				avdJList.setVisibleRowCount(5);
 				avdJList.addListSelectionListener(createSelectionListener);
 				avdJList.setSelectedIndex(0);
@@ -805,11 +808,26 @@ public class SDKManager
 			//System.out.println("\nPackagesThread run()");
 			bHideOutput = true;
 			RefreshProperties();
-
-			operationRequestLatch = new CountDownLatch(1);
+			
+			//operationRequestLatch = new CountDownLatch(1);
+			bGetPackagesFinished = false;
 			getPackagesBgThread = new GetPackagesBgThread();
 			getPackagesBgThread.start();
 
+			while (true)
+			{
+				try
+				{
+					Thread.sleep(750);
+				}
+				catch (InterruptedException ie)
+				{}
+
+				if ( bGetPackagesFinished )
+					break;
+			}
+
+/*			
 			// Wait for Thread to finish..
 			try
 			{
@@ -817,9 +835,15 @@ public class SDKManager
 			}
 			catch (InterruptedException ie)
 			{}
+/**/
 
 			bHideOutput = false;
-
+/*			
+			if ( PackageAr == null )
+			    System.out.println("PackageAr null");
+			else
+			    System.out.println("PackageAr.size(): "+PackageAr.size());
+/**/
 			if ((PackageAr != null) && (PackageAr.size() > 0))
 			{
 				packageDialog();
@@ -833,6 +857,8 @@ public class SDKManager
 					"Packages",
 					JOptionPane.ERROR_MESSAGE);
 			}
+			
+			//System.out.println("Exiting PackagesThread");
 		}
 	} //}}}
 
@@ -915,6 +941,9 @@ public class SDKManager
 			int iTotal = 0;
 			int iPrevTotal = 0;
 			int iM = 0;
+			int iPkgLen = 0;
+			//int iPrevLength = 0;
+			iPrevLength = 0;
 			byte[] bOutAr = null;
 			byte[] bAr = {(byte) 0x0a, (byte) 0x20, (byte) 0x20};
 			String sStart = new String(bAr);
@@ -1031,7 +1060,7 @@ public class SDKManager
 			{
 				try
 				{
-					Thread.sleep(250);
+					Thread.sleep(750);
 				}
 				catch (InterruptedException ie)
 				{}
@@ -1039,6 +1068,7 @@ public class SDKManager
 				if (bCommandFinished)
 					break;
 			}
+			
 
 /*
             // Wait for Thread to finish..
@@ -1129,14 +1159,28 @@ public class SDKManager
                         iCol = 8;
                         while ( true )
                         {
-                            if ( sInstalled.length() >= iCol )
-                                ;
-                            else
+                            //System.out.println("(A)--TOP--");
+                            //System.out.println("iPrevLength: "+iPrevLength);
+                            //System.out.println("sUpdate.length(): '"+sUpdate.length()+"'");
+                            if ( sUpdate.length() < iPrevLength )
                             {
-                                for ( int iX = 0; iX < (iCol - sInstalled.length()); iX++ )
+                                for ( int iX = 0; iX < iPrevLength; iX++ )
                                     sB.append("  ");
                                 
                                 break;
+                            }
+                            else
+                            {
+                                if ( sUpdate.length() >= iCol )
+                                    ;
+                                else
+                                {
+                                    iPrevLength = iCol - sUpdate.length();
+                                    for ( int iX = 0; iX < (iCol - sUpdate.length()); iX++ )
+                                        sB.append("  ");
+                                    
+                                    break;
+                                }
                             }
                             
                             iCol += 8;
@@ -1221,6 +1265,11 @@ public class SDKManager
                                 iCol = 8;
                                 while ( true )
                                 {
+                                    //System.out.println("(B)--TOP--");
+                                    //System.out.println("iPrevLength: "+iPrevLength);
+                                    //System.out.println("sInstalled.length(): '"+sInstalled.length()+"'");
+                                    
+/*                                    
                                     if ( sInstalled.length() >= iCol )
                                         ;
                                     else
@@ -1232,7 +1281,31 @@ public class SDKManager
                                     }
                                     
                                     iCol += 8;
-                                }
+/**/                                    
+                                    if ( sInstalled.length() < iPrevLength )
+                                    {
+                                        for ( int iX = 0; iX < iPrevLength; iX++ )
+                                            sB.append("  ");
+                                        
+                                        break;
+                                    }
+                                    else
+                                    {
+                                        if ( sInstalled.length() >= iCol )
+                                            ;
+                                        else
+                                        {
+                                            iPrevLength = iCol - sInstalled.length();
+                                            for ( int iX = 0; iX < (iCol - sInstalled.length()); iX++ )
+                                                sB.append("  ");
+                                            
+                                            break;
+                                        }
+                                    }
+                                    
+                                    iCol += 8;
+                                    
+                                }   // End while..
                                 
                                 sB.append(sVersion);
                                 sInstalled = sB.toString();
@@ -1258,6 +1331,34 @@ public class SDKManager
                                 iCol = 8;
                                 while ( true )
                                 {
+                                    //System.out.println("(C)--TOP--");
+                                    //System.out.println("iPrevLength: "+iPrevLength);
+                                    //System.out.println("sInstalled.length(): '"+sInstalled.length()+"'");
+                                    
+                                    if ( sInstalled.length() < iPrevLength )
+                                    {
+                                        for ( int iX = 0; iX < iPrevLength; iX++ )
+                                            sB.append("  ");
+                                        
+                                        break;
+                                    }
+                                    else
+                                    {
+                                        if ( sInstalled.length() >= iCol )
+                                            ;
+                                        else
+                                        {
+                                            iPrevLength = iCol - sInstalled.length();
+                                            for ( int iX = 0; iX < (iCol - sInstalled.length()); iX++ )
+                                                sB.append("  ");
+                                            
+                                            break;
+                                        }
+                                    }
+                                    
+                                    iCol += 8;
+                                    
+/*                                    
                                     if ( sInstalled.length() >= iCol )
                                         ;
                                     else
@@ -1269,6 +1370,7 @@ public class SDKManager
                                     }
                                     
                                     iCol += 8;
+/**/                                    
                                 }
                                 
                                 sB.append(sVersion);
@@ -1453,11 +1555,92 @@ public class SDKManager
                             //System.out.println("sVersion: '"+sVersion+"'");
                             sB = new StringBuffer();
                             sB.append(sPackage);
-                            //System.out.println("sPackage.length(): "+sPackage.length());
+                            //System.out.println("\nsPackage.length(): "+sPackage.length());
                             
-                            iCol = 8;
+                            //iCol = 8;
+                            iCol = 0;
+                            //int iT = 0;
+                            int iLenDif = 0;
                             while ( true )
                             {
+                                //System.out.println("(D)--TOP--");
+                                //System.out.println("iPrevLength: "+iPrevLength);
+                                //System.out.println("sPackage.length(): '"+sPackage.length()+"'");
+/*                                
+                                if ( sPackage.length() < iPrevLength )
+                                { 
+                                    //iT = iPrevLength - sPackage.length();
+                                    //iLenDif = (iPrevLength - sPackage.length()) / 3;
+                                    //iLenDif = (iPrevLength - sPackage.length()) / 2;    // Char width
+                                    iLenDif = iPrevLength - sPackage.length();
+                                    System.out.println("iLenDif: "+iLenDif);
+                                    
+                                    // !! TESTING !!
+                                    //if ( sPackage.length() == 18 )
+                                        //iLenDif = 7;
+                                    
+                                    //System.out.println("iLenDif + sPackage.length(): "+(iLenDif + sPackage.length()));
+                                    //for ( int iX = 0; iX < iPrevLength; iX++ )
+                                    //for ( int iX = 0; iX < (iLenDif + sPackage.length()); iX++ )
+                                    for ( int iX = 0; iX < iLenDif; iX++ )
+                                        //sB.append("  ");
+                                        sB.append("   ");
+                                        //sB.append(" ");
+
+                                    if ( iPrevLength > sPackage.length() )
+                                        ;
+                                    else
+                                    {
+                                        iPrevLength = sPackage.length();
+                                        System.out.println("(New)iPrevLength: "+iPrevLength);
+                                    }
+                                    
+                                    break;
+                                }
+                                else
+                                {
+                                    if ( sPackage.length() >= iCol )
+                                        ;
+                                    else
+                                    {
+                                        //iPrevLength = iCol - sPackage.length();
+                                        for ( int iX = 0; iX < (iCol - sPackage.length()); iX++ )
+                                            sB.append("  ");
+                                        
+                                        iPrevLength = sPackage.length();
+                                        System.out.println("(New)iPrevLength: "+iPrevLength);
+                                        break;
+                                    }
+                                }
+/**/
+
+                                if ( iCol > sPackage.length() )
+                                {
+                                    //if ( (sPackage.length() + 4) > iCol )
+                                    if ( (sPackage.length() + 3) > iCol )
+                                        ;
+                                    else
+                                    {
+                                        for ( int iX = 0; iX < (iCol - sPackage.length()); iX++ )
+                                            sB.append(" ");
+                                        
+                                        iPrevLength = sPackage.length() + (iCol - sPackage.length());
+                                        iPkgLen = sPackage.length();
+                                        
+                                        break;
+                                    }
+                                }
+                                else
+                                {
+                                    // <=
+                                    
+                                }
+                                
+                                
+                                
+                                iCol += 8;
+                                    
+/*                                
                                 if ( sPackage.length() >= iCol )
                                     ;
                                 else
@@ -1469,7 +1652,8 @@ public class SDKManager
                                 }
                                 
                                 iCol += 8;
-                            }
+/**/                                
+                            }   // End while..
                             
                             sB.append(sVersion);
                             
@@ -1488,23 +1672,99 @@ public class SDKManager
 
 							// Next..
 							iLoc7 = commandResultS.indexOf(sStart, iLoc7); // 0x0a 0x20 0x20
-							if (iLoc7 == -1)
+							if ( iLoc7 == -1 )
 								break;
 
 							for ( ; Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
 
-							if (iLoc7 >= iLoc4) // 'Available Updates:'
+							if ( iLoc7 >= iLoc4 ) // 'Available Updates:'
 								break;
 
 							iStart = iLoc7;
 						}    // End while..
 					}
 				}
+				
+				//System.out.println("At cmdline-tools");
+				
+				// Get 'cmdline-tools'
+                //StringBuffer sB = new StringBuffer();
+                sB = new StringBuffer();
+                StringBuffer sTb;
+                sT = "";
+                sT2 = "";
+                byte[] buf;
+                iLoc2 = 0;
+                iLoc3 = 0;
+                
+                sB.append(sSDKPath);
+                sB.append("/cmdline-tools");
+                File tFile = new File(sB.toString());
+                File tFile2;
+                String[] dirList = null;
+        
+                // Handle 'cmdline-tools' sub-directories..	
+                //if ( tFile.exists() )
+                if ( (tFile != null) && (tFile.exists()) )
+                //if ( false )
+                {
+                    if ( tFile != null )
+                        dirList = tFile.list();
+                    
+                    if ( (dirList != null) && (dirList.length > 0) )
+                    {
+                        
+                        for ( int iZ = 0; iZ < dirList.length; iZ++ )
+                        {
+                            //System.out.println("["+iZ+"]: '"+dirList[iZ]+"'");
+                            if ( dirList[iZ].equals("bin") || dirList[iZ].equals("lib") ||      // Ignore..
+                                    //dirList[iZ].equals("NOTICE.txt") || dirList[iZ].equals("source.properties") )
+                                    dirList[iZ].equals("NOTICE.txt") || dirList[iZ].equals("source.properties") ||
+                                    dirList[iZ].equals("latest") )
+                                continue;
+                             
+                            sTb = new StringBuffer();
+                            sTb.append(sB.toString());
+                            sTb.append("/");
+                            sTb.append(dirList[iZ]);
+                            sTb.append("/source.properties");
+                            //System.out.println("sTb: '"+sTb.toString()+"'");
+                            
+                            tFile2 = new File(sTb.toString());
+                            if ( tFile2.exists() )
+                            {
+                                buf = readFile(1024, sTb.toString());
+                                if ( (buf != null) && (buf.length > 0) )
+                                {
+                                    sT = new String(buf);
+                                    iLoc2 = sT.indexOf("Pkg.Path");
+                                    if ( iLoc2 != -1 )
+                                    {
+                                        iLoc3 = sT.indexOf((int)0x0a, iLoc2);
+                                        if ( iLoc3 != -1 )
+                                        {
+                                            sT2 = sT.substring(iLoc2 + 9, iLoc3);
+                                            sT2 = sT2.trim();
+                                            //System.out.println("(Add)sT2: '"+sT2+"'");
+                                            if ( (InstalledAr != null) && (InstalledAr.size() > 0) )
+                                                InstalledAr.add((String)sT2);
+                                        }
+                                    }
+                                }
+                            }
+                        }   // End for..
+/**/                        
+                        
+                    }
+                }
+/**/                
 			}
 
+			bGetPackagesFinished = true;
+			
 			//System.out.println("\nExiting GetPackagesBgThread");
-			if (operationRequestLatch != null)
-				operationRequestLatch.countDown();
+			//if ( operationRequestLatch != null )
+				//operationRequestLatch.countDown();
 
 		}
 	} //}}}
@@ -2547,7 +2807,9 @@ public class SDKManager
 
 		packageJList = new JList(tSa);
 		//packageJList.setFont(new Font("Monospaced", Font.BOLD, 13));
-		//packageJList.setFont(new Font("Monospaced", Font.BOLD, 12));
+		packageJList.setFont(new Font("Monospaced", Font.BOLD, 12));
+		//packageJList.setFont(new Font("Dialog", Font.BOLD, 12));
+		//packageJList.setFont(new Font("DialogInput", Font.BOLD, 12));
 		//packageJList.setFont(new Font("SansSerif", Font.BOLD, 12));
 		//packageJList.setFont(new Font("Serif", Font.BOLD, 12));
 		packageJList.setCellRenderer(new ColorCellRenderer());
@@ -2717,6 +2979,7 @@ public class SDKManager
 			tSa[iJ] = (String)SystemImagesAr.get(iJ);
 
 		sIJList = new JList(tSa);
+		sIJList.setFont(new Font("Monospaced", Font.BOLD, 12));
 		sIJList.setVisibleRowCount(5);
 		sIJList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 		systemImageScrollPane.getViewport().setView(sIJList);
@@ -2742,6 +3005,7 @@ public class SDKManager
 			tSa[iJ] = (String)DevicesAr.get(iJ);
 
 		devicesJList = new JList(tSa);
+		devicesJList.setFont(new Font("Monospaced", Font.BOLD, 12));
 		devicesJList.setVisibleRowCount(5);
 		devicesJList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 		devicesScrollPane.getViewport().setView(devicesJList);
@@ -2807,6 +3071,8 @@ public class SDKManager
 			File tFile = new File(sB.toString());
 			if ( tFile.exists() )
 			{
+			    // 'latest' is the highest numbered cmdline-tools version..
+			    // We only want to show numbered versions..
                 dirList = tFile.list();
                 if ( (dirList != null) && (dirList.length > 0) )
                 {
@@ -2815,7 +3081,9 @@ public class SDKManager
                     {
                         //System.out.println("["+iZ+"]: '"+dirList[iZ]+"'");
                         if ( dirList[iZ].equals("bin") || dirList[iZ].equals("lib") ||
-                                dirList[iZ].equals("NOTICE.txt") || dirList[iZ].equals("source.properties") )
+                                //dirList[iZ].equals("NOTICE.txt") || dirList[iZ].equals("source.properties") )
+                                dirList[iZ].equals("NOTICE.txt") || dirList[iZ].equals("source.properties") ||
+                                dirList[iZ].equals("latest") )
                             continue;
                             
                         sLastDir = dirList[iZ];
@@ -3734,6 +4002,67 @@ public class SDKManager
 			}
 		}
 	}; //}}}
+
+	//{{{	readFile()
+	private byte[] readFile(int iInitialSize, String fileName)
+	{
+		//System.out.println("readFile()");
+/*		
+		if ( fileName == null )
+		    System.out.println("fileName null");
+		else
+		    System.out.println("fileName: '"+fileName+"'");
+/**/
+
+		ByteArrayOutputStream baos = new ByteArrayOutputStream(iInitialSize);
+		byte[] tempBuf = new byte[768];
+		
+		int iBufLength = tempBuf.length;		
+    	int bytes_read = 0;
+
+		FileInputStream fis = null;
+
+		try
+		{
+			File file = new File(fileName);
+			if ( file.exists() )
+			{
+				fis = new FileInputStream(file);
+	
+				while ( true )
+				{
+					bytes_read = fis.read(tempBuf, 0, iBufLength);
+					//System.out.println("bytes_read: "+bytes_read);
+					if ( bytes_read == -1 )
+					{
+						// EOF
+						break;
+					}
+		
+					baos.write(tempBuf, 0, bytes_read);
+				}
+			}
+		}
+		catch (Exception e)
+		{
+			System.out.println("readFile Exception: "+e.toString());
+			e.printStackTrace();
+		}
+		finally
+		{
+			try
+			{
+				if ( fis != null )
+					fis.close();
+			}
+			catch (IOException ioe)
+			{
+			}
+		}
+		
+		return baos.toByteArray();
+		
+	}	//}}}
 
 	//{{{   ListSelectionListener createSelectionListener
 	ListSelectionListener createSelectionListener = new ListSelectionListener()

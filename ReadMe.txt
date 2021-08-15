@@ -1,5 +1,5 @@
 
-SDK Manager lets you manage the Android SDK that you would normally
+SDK Manager lets you manage the Android SDK that you would
 use 'sdkmanager' and 'avdmanager' to manage packages, create and
 launch AVDs.
 
@@ -27,7 +27,7 @@ please follow these steps in order:
 Run SDK Manager.
 
 Select 'Manage SDK->Packages' and select the highest 'build-tools;..' level
-that you'd like to use, like 'build-tools;31.0.0-rc3', check "Accept licenses"
+that you'd like to use, like 'build-tools;31.0.0', check "Accept licenses"
 and hit Submit. This should set up the 'emulator' and 'tools' directories/packages.
 
 ** Note **
@@ -45,7 +45,7 @@ if it's there jump to below to finish accepting the licenses,
 otherwise select 'platform-tools', check "Accept licenses" and hit Submit.
 
 Finish accepting licenses:
-Then select Manage SDK->Accept Licenses, check "Accept Licenses" and hit Submit.
+Then select 'Manage SDK->Accept Licenses', check "Accept Licenses" and hit Submit.
 
 This will ensure that many essential things, like the 'emulator',
 'platforms' and 'tools' directories, are properly set up and all the licenses are accepted.
@@ -100,9 +100,6 @@ it will do an Enter for the default choice for the:
 prompt.
 
 
-SDK Manager 1.1.1:
-    Many small improvements.
-    
 SDK Manager 1.1.3:  
     Fixed multiple 'emulator' listings in package list.
     Improved AVD operations.
@@ -112,7 +109,12 @@ SDK Manager 1.1.4:
     Improved updating packages.
     New Emulator options.
 
+SDK Manager 1.1.5:
+    Now shows all installed 'cmdline-tools' packages except for 'latest',
+    which is the last numbered version.
+    Improved getting Packages.
 
+    
 Please let me know of any issues so that
 I can try to fix it.
 
