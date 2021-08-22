@@ -94,6 +94,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import javax.swing.plaf.ColorUIResource;
 import java.util.concurrent.CountDownLatch;
+//import java.util.concurrent.Semaphore;
 
 import java.nio.file.Files;
 import java.nio.file.FileSystems;
@@ -167,7 +168,6 @@ public class SDKManager
 	static volatile String sKernel;
 	static volatile String sQuickBoot;
 	static volatile String sMemory;
-	static volatile String sToolsEntry;
 	static volatile String sDisableJNIChecks;
 	static volatile String sSELinuxSecurity;
 	static volatile String sDisableVMAcceleration;
@@ -185,6 +185,7 @@ public class SDKManager
 	static volatile boolean bAVDSubmit;
 	static volatile boolean bAddTools;
 	static volatile boolean bGetPackagesFinished;
+	static volatile boolean bDontSetTools;
 
 	static volatile int iOS;
 	static volatile int iFontSize;
@@ -198,14 +199,22 @@ public class SDKManager
 	static ArrayList InstalledAr;
 	static ArrayList AVDsAr;
 	static ArrayList UpdateAr;
+	static ArrayList InstalledObsoleteAr;
+	static ArrayList AvailableObsoleteAr;
 
 	private static SDKManager sdkManager;
+	//private static Semaphore eventArControl = new Semaphore(1);
 
 	static final int WINDOWS = 0;
 	static final int LINUX = 1;
 	static final int LINUX_MAC = 2;
 
 	static final int DISPLAY_WIDTH = 105;
+	//static final int DISPLAY_WIDTH = 125;
+	//static final int DISPLAY_WIDTH = 145;
+	
+	static final String SPACING = " ";
+	//static final String SPACING = "  ";
 
 	static final String CREATE_ADV = "Create";
 	static final String START = "Start";
@@ -266,6 +275,7 @@ public class SDKManager
 		sQuickBoot = "";
 		sMemory = "";
 		bAVDSubmit = false;
+		bDontSetTools = false;
 
 		createGui();
 
@@ -296,19 +306,32 @@ public class SDKManager
                         
                     sLastDir = dirList[iZ];
                 }
-                
-                //System.out.println("sLastDir: '"+sLastDir+"'");
+/*
+                if ( sLastDir == null )
+                    System.out.println("sLastDir null");
+                else
+                    System.out.println("sLastDir: '"+sLastDir+"'");
+/**/                
                 // Like:  'latest'
                 if ( sLastDir.equals("") )
-                    sToolsDir = "cmdline-tools";    // No version directory..
+                {
+                    //sToolsDir = "cmdline-tools";    // No version directory..
+                    sToolsDir = "tools/bin";   // Default..
+                    //System.out.println("(1)sToolsDir set: '"+sToolsDir+"'");
+                }
                 else
                 {
                     StringBuffer sB2 = new StringBuffer();
                     sB2.append("cmdline-tools");
                     sB2.append("/");
+                    
+                    
                     sB2.append(sLastDir);
                     
+                    sB2.append("/bin");
+                    
                     sToolsDir = sB2.toString();     // Like:  'cmdline-tools/latest'
+                    //System.out.println("(2)sToolsDir set: '"+sToolsDir+"'");
                 }
 		    }
 		}
@@ -321,6 +344,7 @@ public class SDKManager
 			if (tFile.exists())
 			{
 				sToolsDir = "tools";
+				//System.out.println("(3)sToolsDir set: '"+sToolsDir+"'");
 			}
 		}
 		
@@ -916,6 +940,7 @@ public class SDKManager
 			String sVersion = "";
 			String sUpdateVersion = "";
 			String sEmulatorEntry = "";
+			String sToolsEntry = "";
 			StringBuffer sB;
 			boolean bFoundUpdates = false;
 			boolean bFoundUpdate;
@@ -934,6 +959,12 @@ public class SDKManager
 			int iLoc12 = 0;
 			int iLoc14 = 0;
 			int iLoc15 = 0;
+			int iLocInstalledPackages = 0;    // 3
+			int iLocInstalledObsolete = 0;    // 14
+			int iLocAvailablePackages = 0;    // 5
+			int iLocAvailableObsolete = 0;    // 10
+			int iLocAvailableUpdates = 0;    // 4
+			
 			int iStart = 0;
 			int iStart2 = 0;
 			int iCol = 0;
@@ -942,12 +973,142 @@ public class SDKManager
 			int iPrevTotal = 0;
 			int iM = 0;
 			int iPkgLen = 0;
-			//int iPrevLength = 0;
 			iPrevLength = 0;
 			byte[] bOutAr = null;
 			byte[] bAr = {(byte) 0x0a, (byte) 0x20, (byte) 0x20};
 			String sStart = new String(bAr);
 
+			RefreshProperties();			
+			
+            // Check 'tools' directory..
+            // If 'cmdline-tools' is available use that..		
+            sB = new StringBuffer();
+/*            
+            if ( sSDKPath == null )
+                System.out.println("sSDKPath null");
+            else
+                System.out.println("sSDKPath: '"+sSDKPath+"'");
+/**/                    
+            sB.append(sSDKPath);
+            sB.append("/cmdline-tools");
+            File tFile = new File(sB.toString());
+            File tFile2;
+            String[] dirList;
+            String sLastDir = "";
+            StringBuffer sTb;
+            byte[] buf;
+            
+            InstalledAr = new ArrayList();
+    
+            // Handle 'cmdline-tools' sub-directories..	
+            if (tFile.exists())
+            {
+                dirList = tFile.list();
+                if ( (dirList != null) && (dirList.length > 0) )
+                {
+                    // Use version directory..
+                    for ( int iZ = 0; iZ < dirList.length; iZ++ )
+                    {
+                        //System.out.println("["+iZ+"]: '"+dirList[iZ]+"'");
+                        if ( dirList[iZ].equals("bin") || dirList[iZ].equals("lib") ||      // Ignore 'bin' and 'lib' directories
+                                dirList[iZ].equals("NOTICE.txt") || dirList[iZ].equals("source.properties") )
+                            continue;
+
+                        if ( dirList[iZ].equals("latest") )
+                        {
+                            if ( InstalledAr != null )
+                                InstalledAr.add((String)"cmdline-tools;latest");
+                        }
+                        else
+                        {
+                            sTb = new StringBuffer();
+                            sTb.append(sB.toString());
+                            sTb.append("/");
+                            sTb.append(dirList[iZ]);
+                            sTb.append("/source.properties");
+                            // Like:  'C:/android-sdk-Z/cmdline-tools/4.0/source.properties'
+                            //System.out.println("sTb: '"+sTb.toString()+"'");
+                            
+                            tFile2 = new File(sTb.toString());
+                            if ( tFile2.exists() )
+                            {
+                                buf = readFile(1024, sTb.toString());
+                                if ( (buf != null) && (buf.length > 0) )
+                                {
+                                    sT = new String(buf);
+                                    //System.out.println("sT: '"+sT+"'");
+                                    iLoc2 = sT.indexOf("Pkg.Path");
+                                    if ( iLoc2 != -1 )
+                                    {
+                                        iLoc3 = sT.indexOf((int)0x0a, iLoc2);
+                                        if ( iLoc3 != -1 )
+                                        {
+                                            sT2 = sT.substring(iLoc2 + 9, iLoc3);
+                                            sT2 = sT2.trim();
+                                            if ( InstalledAr != null )
+                                            {
+                                                //System.out.println("((C)Add)sInstalled: '"+sT2+"'");
+                                                InstalledAr.add((String)sT2);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                           
+                        sLastDir = dirList[iZ];
+                        
+                    }   // End for..
+/*    
+                    if ( sLastDir == null )
+                        System.out.println("sLastDir null");
+                    else
+                        System.out.println("sLastDir: '"+sLastDir+"'");
+/**/ 
+
+                    // Note:
+                    // It adds '/bin' last..
+                    // Figure out bin path for tools / cmdline-tools..
+                    
+                    if ( sLastDir.equals("") )
+                    {
+                        // No other directories..
+                        sToolsDir = "cmdline-tools";
+                        //System.out.println("(1)sToolsDir set: '"+sToolsDir+"'");
+                    }
+                    else
+                    {
+                        StringBuffer sB2 = new StringBuffer();
+                        sB2.append("cmdline-tools");
+                        sB2.append("/");
+                        sB2.append(sLastDir);   // Like 'latest' or '3.0'..
+                        
+                        sToolsDir = sB2.toString();     // Like:  'cmdline-tools/latest'
+                        //System.out.println("(2)sToolsDir set: '"+sToolsDir+"'");
+                    }
+                }
+            }
+            else
+            {
+                // No 'comdline-tools'..
+                sB = new StringBuffer();
+                sB.append(sSDKPath);
+                sB.append("/tools");
+                tFile = new File(sB.toString());
+                if (tFile.exists())
+                {
+                    sToolsDir = "tools";
+                    //System.out.println("(3)sToolsDir set: '"+sToolsDir+"'");
+                }
+            }
+/*            
+            if ( sToolsDir == null )
+                System.out.println("sToolsDir null");
+            else
+                System.out.println("sToolsDir: '"+sToolsDir+"'");
+/**/			
+			
+			
 			sb = new StringBuffer();
 
 			if (iOS == LINUX_MAC)
@@ -1091,16 +1252,17 @@ public class SDKManager
 			if ( (commandResultS != null) && (commandResultS.length() > 0) )
 			{
 				PackageAr = new ArrayList();
-				InstalledAr = new ArrayList();
+				//InstalledAr = new ArrayList();
 				UpdateAr = new ArrayList();
+				AvailableObsoleteAr = new ArrayList();
 
-				iLoc3 = commandResultS.indexOf("Installed packages:");
-				iLoc14 = commandResultS.indexOf("Installed Obsolete Packages:");
-				iLoc5 = commandResultS.indexOf("Available Packages:");
-				iLoc10 = commandResultS.indexOf("Available Obsolete Packages:");
-				iLoc4 = commandResultS.indexOf("Available Updates:");
+				iLocInstalledPackages = commandResultS.indexOf("Installed packages:");
+				iLocInstalledObsolete = commandResultS.indexOf("Installed Obsolete Packages:");
+				iLocAvailablePackages = commandResultS.indexOf("Available Packages:");
+				iLocAvailableObsolete = commandResultS.indexOf("Available Obsolete Packages:");
+				iLocAvailableUpdates = commandResultS.indexOf("Available Updates:");
 
-                if ( iLoc5 == -1 )
+                if ( iLocAvailablePackages == -1 )
                 {
                     // Error..
                     if (operationRequestLatch != null)
@@ -1109,16 +1271,20 @@ public class SDKManager
                     return;
                 }
 				
-				if (iLoc4 != -1)
+				if ( iLocAvailableUpdates != -1 )
 					bFoundUpdates = true;
 				else
-					iLoc4 = commandResultS.length();
-				
+				    iLocAvailableUpdates = commandResultS.length();
+
+                /**
+                 * Available Updates
+                 */
+				    
 				// Get available updates..
 				if ( bFoundUpdates )
 				{
 				    //System.out.println("Available Updates");
-					iLoc8 = iLoc4;
+					iLoc8 = iLocAvailableUpdates;
 					for ( int iX = 0; iX < 3; iX++ )
 					{
 						iLoc8 = commandResultS.indexOf(sStart, iLoc8);
@@ -1165,7 +1331,7 @@ public class SDKManager
                             if ( sUpdate.length() < iPrevLength )
                             {
                                 for ( int iX = 0; iX < iPrevLength; iX++ )
-                                    sB.append("  ");
+                                    sB.append(SPACING);
                                 
                                 break;
                             }
@@ -1177,7 +1343,7 @@ public class SDKManager
                                 {
                                     iPrevLength = iCol - sUpdate.length();
                                     for ( int iX = 0; iX < (iCol - sUpdate.length()); iX++ )
-                                        sB.append("  ");
+                                        sB.append(SPACING);
                                     
                                     break;
                                 }
@@ -1191,14 +1357,14 @@ public class SDKManager
 						sB.append(sUpdateVersion);
 						
 						UpdateAr.add((String)sB.toString());
-						//System.out.println("(add())sB: '"+sB.toString()+"'");
-						
+						//System.out.println("(UpdateAr.add()): '"+sB.toString()+"'");
+/*						
 						if ( sUpdate.equals("emulator") )
 						{
 						    sEmulatorEntry = sB.toString();
 						    //System.out.println("sEmulatorEntry: '"+sEmulatorEntry+"'");
 						}
-
+/**/
 						// Next..
 						iLoc7 = commandResultS.indexOf(sStart, iLoc7); // 0x0a 0x20 0x20
 						if (iLoc7 == -1)
@@ -1213,8 +1379,19 @@ public class SDKManager
 					} // End while..
 				}
 
+				//System.out.println("\n");
+				
+                /**
+                 * Installed Packages
+                 */
+				
+                // Note:
+                // There is a case where Installed had:  'build-tools;30.0.0-rc2 | 30.0.0 rc2'
+                // but it wasn't in the Available Packages or in Obsolete..
+                
 				// Get installed packages..                
-				iLoc6 = commandResultS.indexOf("Location", iLoc3); // Past 'Installed packages:'..
+				//iLoc6 = commandResultS.indexOf("Location", iLoc3); // Past 'Installed packages:'..
+				iLoc6 = commandResultS.indexOf("Location", iLocInstalledPackages); // Past 'Installed packages:'..
 				if (iLoc6 != -1)
 				{
 				    //System.out.println("Installed Packages");
@@ -1223,20 +1400,20 @@ public class SDKManager
 					{
 					    //System.out.println("==TOP==");
 						iLoc7 = commandResultS.indexOf(sStart, iLoc7);
-						if (iJ == 0)
+						if ( iJ == 0 )
 						{
-							// Skip first one..
+							// Skip first one, '-------'..
 							iLoc7 += 2;
 							continue;
 						}
 
-						if ( (iLoc14 != -1) && (iLoc7 >= iLoc14) )
+						if ( (iLocInstalledObsolete != -1) && (iLoc7 >= iLocInstalledObsolete) )
 						    break;
-						
-						if ( (iLoc5 != -1) && (iLoc7 >= iLoc5) )
+
+						if ( (iLocAvailablePackages != -1) && (iLoc7 >= iLocAvailablePackages) )
 							break;
 
-						if (iLoc7 != -1)
+						if ( iLoc7 != -1 )
 						{
 							// Skip to start..
 							iLoc7 += 3;
@@ -1246,148 +1423,78 @@ public class SDKManager
 							sInstalled = commandResultS.substring(iStart, iLoc7);
 							//System.out.println("sInstalled: '"+sInstalled+"'");
 							
-							// For some reason it doesn't include 'emulator' or 'tools'
-							// in the list of Packages, so detect it here, to add..
-							if ( sInstalled.equals("emulator") )
-							{
-                                // Get version..
-                                for ( ; Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
-                                iLoc7 += 2;
-                                iStart2 = iLoc7;
+                            // Get version..
+                            for ( ; Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
+                            iLoc7 += 2;
+                            iStart2 = iLoc7;
+                            
+                            for ( ; !Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
+                            sVersion = commandResultS.substring(iStart2, iLoc7);
+                            sVersion = sVersion.trim();
+                            //System.out.println("sVersion: '"+sVersion+"'");
+                            sB = new StringBuffer();
+                            sB.append(sInstalled);
+                            
+                            iCol = 8;
+                            while ( true )
+                            {
+                                //System.out.println("(B)--TOP--");
+                                //System.out.println("iPrevLength: "+iPrevLength);
+                                //System.out.println("sInstalled.length(): '"+sInstalled.length()+"'");
                                 
-                                for ( ; !Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
-                                sVersion = commandResultS.substring(iStart2, iLoc7);
-                                sVersion = sVersion.trim();
-                                //System.out.println("sVersion: '"+sVersion+"'");
-                                sB = new StringBuffer();
-                                sB.append(sInstalled);
-                                
-                                iCol = 8;
-                                while ( true )
+                                if ( sInstalled.length() < iPrevLength )
                                 {
-                                    //System.out.println("(B)--TOP--");
-                                    //System.out.println("iPrevLength: "+iPrevLength);
-                                    //System.out.println("sInstalled.length(): '"+sInstalled.length()+"'");
+                                    for ( int iX = 0; iX < iPrevLength; iX++ )
+                                        sB.append(SPACING);
                                     
-/*                                    
+                                    break;
+                                }
+                                else
+                                {
                                     if ( sInstalled.length() >= iCol )
                                         ;
                                     else
                                     {
+                                        iPrevLength = iCol - sInstalled.length();
                                         for ( int iX = 0; iX < (iCol - sInstalled.length()); iX++ )
-                                            sB.append("  ");
+                                            sB.append(SPACING);
                                         
                                         break;
                                     }
-                                    
-                                    iCol += 8;
-/**/                                    
-                                    if ( sInstalled.length() < iPrevLength )
-                                    {
-                                        for ( int iX = 0; iX < iPrevLength; iX++ )
-                                            sB.append("  ");
-                                        
-                                        break;
-                                    }
-                                    else
-                                    {
-                                        if ( sInstalled.length() >= iCol )
-                                            ;
-                                        else
-                                        {
-                                            iPrevLength = iCol - sInstalled.length();
-                                            for ( int iX = 0; iX < (iCol - sInstalled.length()); iX++ )
-                                                sB.append("  ");
-                                            
-                                            break;
-                                        }
-                                    }
-                                    
-                                    iCol += 8;
-                                    
-                                }   // End while..
-                                
-                                sB.append(sVersion);
-                                sInstalled = sB.toString();
-                                sEmulatorEntry = sB.toString();
-							    
-							}
-							else if ( sInstalled.equals("tools") )
-							{
-							    bAddTools = true;
-                                    
-                                // Get version..
-                                for ( ; Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
-                                iLoc7 += 2;
-                                iStart2 = iLoc7;
-                                
-                                for ( ; !Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
-                                sVersion = commandResultS.substring(iStart2, iLoc7);
-                                sVersion = sVersion.trim();
-                                //System.out.println("sVersion: '"+sVersion+"'");
-                                sB = new StringBuffer();
-                                sB.append(sInstalled);
-                                
-                                iCol = 8;
-                                while ( true )
-                                {
-                                    //System.out.println("(C)--TOP--");
-                                    //System.out.println("iPrevLength: "+iPrevLength);
-                                    //System.out.println("sInstalled.length(): '"+sInstalled.length()+"'");
-                                    
-                                    if ( sInstalled.length() < iPrevLength )
-                                    {
-                                        for ( int iX = 0; iX < iPrevLength; iX++ )
-                                            sB.append("  ");
-                                        
-                                        break;
-                                    }
-                                    else
-                                    {
-                                        if ( sInstalled.length() >= iCol )
-                                            ;
-                                        else
-                                        {
-                                            iPrevLength = iCol - sInstalled.length();
-                                            for ( int iX = 0; iX < (iCol - sInstalled.length()); iX++ )
-                                                sB.append("  ");
-                                            
-                                            break;
-                                        }
-                                    }
-                                    
-                                    iCol += 8;
-                                    
-/*                                    
-                                    if ( sInstalled.length() >= iCol )
-                                        ;
-                                    else
-                                    {
-                                        for ( int iX = 0; iX < (iCol - sInstalled.length()); iX++ )
-                                            sB.append("  ");
-                                        
-                                        break;
-                                    }
-                                    
-                                    iCol += 8;
-/**/                                    
                                 }
                                 
-                                sB.append(sVersion);
-                                sInstalled = sB.toString();
-                                sToolsEntry = sB.toString();
-							}
-
-                            //System.out.println("(Add)sInstalled: '"+sInstalled+"'");							
-							InstalledAr.add((String)sInstalled);
+                                iCol += 8;
+                                
+                            }   // End while..
+                            
+                            sB.append(sVersion);
+                            sInstalled = sB.toString();
+/**/                            
+                            
+                            InstalledAr.add((String)sInstalled);
+                            //System.out.println("(InstalledAr.add()): '"+sInstalled+"'");
+                            
 						}
 					} // End while..
 				}
 				
+				//System.out.println("\n");
+
+                /**
+                 * Installed Obsolete Packages
+                 */
+				
 				// Get Installed Obsolete Packages..
-                if ( iLoc14 != -1 )
+				// Only available after you select
+				// one of the Obsolete Packages..
+				String sInstalledObs = "";
+				
+                if ( iLocInstalledObsolete != -1 )
                 {
-                    iLoc15 = commandResultS.indexOf("Location", iLoc14); // Past 'Installed Obsolete Packages:'..
+                    //System.out.println("\nInstalled Obsolete Packages");
+                    InstalledObsoleteAr = new ArrayList();
+                    
+                    iLoc15 = commandResultS.indexOf("Location", iLocInstalledObsolete); // Past 'Installed Obsolete Packages:'..
                     if (iLoc15 != -1)
                     {
                         while ( true )
@@ -1410,22 +1517,71 @@ public class SDKManager
                         
                         //System.out.println("(TOP)"+commandResultS.substring(iLoc7, iLoc7 + 10));
                         for ( ; !Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
-                        sInstalled = commandResultS.substring(iStart, iLoc7);
-                        //System.out.println("(Obsolete)sInstalled: '"+sInstalled+"'");
+                        sInstalledObs = commandResultS.substring(iStart, iLoc7);
+                        //System.out.println("sInstalledObs: '"+sInstalledObs+"'");
+
+                        // Get version..
+                        for ( ; Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
+                        iLoc7 += 2;
+                        iStart2 = iLoc7;
                         
-                        InstalledAr.add((String)sInstalled);
+                        for ( ; !Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
+                        sVersion = commandResultS.substring(iStart2, iLoc7);
+                        sVersion = sVersion.trim();
+                        //System.out.println("sVersion: '"+sVersion+"'");
+                        sB = new StringBuffer();
+                        sB.append(sInstalledObs);
                         
+                        iCol = 8;
+                        while ( true )
+                        {
+                            //System.out.println("(B)--TOP--");
+                            //System.out.println("iPrevLength: "+iPrevLength);
+                            //System.out.println("sInstalled.length(): '"+sInstalled.length()+"'");
+                            
+                            if ( sInstalledObs.length() < iPrevLength )
+                            {
+                                for ( int iX = 0; iX < iPrevLength; iX++ )
+                                    sB.append(SPACING);
+                                
+                                break;
+                            }
+                            else
+                            {
+                                if ( sInstalledObs.length() >= iCol )
+                                    ;
+                                else
+                                {
+                                    iPrevLength = iCol - sInstalledObs.length();
+                                    for ( int iX = 0; iX < (iCol - sInstalledObs.length()); iX++ )
+                                        sB.append(SPACING);
+                                    
+                                    break;
+                                }
+                            }
+                            
+                            iCol += 8;
+                            
+                        }   // End while..
+                        
+                        sB.append(sVersion);
+                        //System.out.println("(Add)sB: '"+sB.toString()+"'");
+                        
+                        //InstalledObsoleteAr.add((String)sInstalled);
+                        InstalledObsoleteAr.add((String)sB.toString());
+                        
+/*                        
                         if ( (sIncludeObsolete != null) && (sIncludeObsolete.equals("false")) )
                         {
                             //System.out.println("(1PackageAr.add()): '"+sInstalled+"'");
                             PackageAr.add((String)sInstalled);
                         }
-    
+/**/    
                         // Next..
                         iLoc7 = commandResultS.indexOf(sStart, iLoc7); // 0x0a 0x20 0x20
                         if ( iLoc7 != -1 )
                         {
-                            if (iLoc7 >= iLoc5) // 'Available Packages:'
+                            if ( iLoc7 >= iLocAvailablePackages ) // 'Available Packages:'
                                 break;
 
                             for ( ; Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
@@ -1433,11 +1589,16 @@ public class SDKManager
                         }
                     }   // End while..
                 }
+
+                
+                /**
+                 * Available Packages
+                 */
                 
 				// Get available packages..
 				//System.out.println("\n=========================================");
 				//System.out.println("Available Packages");
-				iLoc6 = commandResultS.indexOf("Description", iLoc5); // From 'Available Packages:'
+				iLoc6 = commandResultS.indexOf("Description", iLocAvailablePackages); // From 'Available Packages:'
 				if ( iLoc6 != -1 )
 				{
 					iLoc8 = commandResultS.indexOf("add-ons;", iLoc6);
@@ -1448,10 +1609,13 @@ public class SDKManager
 						while (true)
 						{
 						    //System.out.println("--TOP--");
+						    if ( (iLocAvailableObsolete != -1) && (iLoc7 >= iLocAvailableObsolete) )
+						        break;
+						        
 						    bDoAdd = true;
 						    //System.out.println("(TOP)"+commandResultS.substring(iLoc7, iLoc7 + 10));
 						    // Only show Obsolete Packages if actually selected..
-                            if ( (iLoc10 != -1) && (iLoc7 >= iLoc10) )    // iLoc10 @  Available Obsolete Packages:
+                            if ( (iLocAvailableObsolete != -1) && (iLoc7 >= iLocAvailableObsolete) )    // iLoc10 @  Available Obsolete Packages:
                             {
                                 if ( (sIncludeObsolete != null) && (sIncludeObsolete.equals("true")) )
                                 {
@@ -1480,70 +1644,6 @@ public class SDKManager
 							sPackage = commandResultS.substring(iStart, iLoc7);
 							//System.out.println("sPackage: '"+sPackage+"'");
 							
-							bFoundUpdate = false;
-                            // Check if there is an Update for this Package..							
-							if ( (UpdateAr != null) && (UpdateAr.size() > 0) )
-							{
-							    for ( int iZ = 0; iZ < UpdateAr.size(); iZ++ )
-							    {
-							        sT = (String)UpdateAr.get(iZ);
-							        iLoc2 = sT.indexOf(" ");
-							        if ( iLoc2 != -1 )
-							            sT2 = sT.substring(0, iLoc2);
-							        
-							        //System.out.println("(Update)sT2: '"+sT2+"'");
-							        //System.out.println("sPackage: '"+sPackage+"'");
-							        if ( sPackage.equals(sT2) )
-							        {
-							            // Matched Update, use that..
-							            //System.out.println("--Matched Update--");
-							            //System.out.println("(2PackageAr.add()): '"+sT+"'");
-							            PackageAr.add((String)sT);
-							            
-							            bFoundUpdate = true;
-							            break;
-							        }
-							    }
-							    
-							    if ( bFoundUpdate )
-							    {
-                                    // Next..
-                                    iLoc7 = commandResultS.indexOf(sStart, iLoc7); // 0x0a 0x20 0x20
-                                    if (iLoc7 == -1)
-                                    {
-                                        break;
-                                    }
-        
-                                    for ( ; Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
-        
-                                    if ( iLoc7 >= iLoc4 ) // 'Available Updates:'
-                                    {
-                                        break;
-                                    }
-        
-                                    iStart = iLoc7;
-                                    continue;
-							    }
-							}
-							
-							if ( sPackage.startsWith("extras;") )
-							{
-							    //System.out.println("bAddEmulator: "+bAddEmulator);
-							    if ( bAddEmulator )
-							    {
-							        //System.out.println("(3PackageAr.add()): '"+sEmulatorEntry+"'");
-							        PackageAr.add((String)sEmulatorEntry);
-							        bAddEmulator = false;    // Reset..
-							    }
-							    
-							    if ( bAddTools )
-							    {
-							        //System.out.println("(4PackageAr.add()): '"+sToolsEntry+"'");
-							        PackageAr.add((String)sToolsEntry);
-							        bAddTools = false;    // Reset..
-							    }
-							}
-                            
                             // Get version..
                             for ( ; Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
                             iLoc7 += 2;
@@ -1557,72 +1657,22 @@ public class SDKManager
                             sB.append(sPackage);
                             //System.out.println("\nsPackage.length(): "+sPackage.length());
                             
-                            //iCol = 8;
                             iCol = 0;
-                            //int iT = 0;
                             int iLenDif = 0;
                             while ( true )
                             {
                                 //System.out.println("(D)--TOP--");
                                 //System.out.println("iPrevLength: "+iPrevLength);
                                 //System.out.println("sPackage.length(): '"+sPackage.length()+"'");
-/*                                
-                                if ( sPackage.length() < iPrevLength )
-                                { 
-                                    //iT = iPrevLength - sPackage.length();
-                                    //iLenDif = (iPrevLength - sPackage.length()) / 3;
-                                    //iLenDif = (iPrevLength - sPackage.length()) / 2;    // Char width
-                                    iLenDif = iPrevLength - sPackage.length();
-                                    System.out.println("iLenDif: "+iLenDif);
-                                    
-                                    // !! TESTING !!
-                                    //if ( sPackage.length() == 18 )
-                                        //iLenDif = 7;
-                                    
-                                    //System.out.println("iLenDif + sPackage.length(): "+(iLenDif + sPackage.length()));
-                                    //for ( int iX = 0; iX < iPrevLength; iX++ )
-                                    //for ( int iX = 0; iX < (iLenDif + sPackage.length()); iX++ )
-                                    for ( int iX = 0; iX < iLenDif; iX++ )
-                                        //sB.append("  ");
-                                        sB.append("   ");
-                                        //sB.append(" ");
-
-                                    if ( iPrevLength > sPackage.length() )
-                                        ;
-                                    else
-                                    {
-                                        iPrevLength = sPackage.length();
-                                        System.out.println("(New)iPrevLength: "+iPrevLength);
-                                    }
-                                    
-                                    break;
-                                }
-                                else
-                                {
-                                    if ( sPackage.length() >= iCol )
-                                        ;
-                                    else
-                                    {
-                                        //iPrevLength = iCol - sPackage.length();
-                                        for ( int iX = 0; iX < (iCol - sPackage.length()); iX++ )
-                                            sB.append("  ");
-                                        
-                                        iPrevLength = sPackage.length();
-                                        System.out.println("(New)iPrevLength: "+iPrevLength);
-                                        break;
-                                    }
-                                }
-/**/
 
                                 if ( iCol > sPackage.length() )
                                 {
-                                    //if ( (sPackage.length() + 4) > iCol )
                                     if ( (sPackage.length() + 3) > iCol )
                                         ;
                                     else
                                     {
                                         for ( int iX = 0; iX < (iCol - sPackage.length()); iX++ )
-                                            sB.append(" ");
+                                            sB.append(SPACING);
                                         
                                         iPrevLength = sPackage.length() + (iCol - sPackage.length());
                                         iPkgLen = sPackage.length();
@@ -1630,46 +1680,16 @@ public class SDKManager
                                         break;
                                     }
                                 }
-                                else
-                                {
-                                    // <=
-                                    
-                                }
-                                
-                                
                                 
                                 iCol += 8;
                                     
-/*                                
-                                if ( sPackage.length() >= iCol )
-                                    ;
-                                else
-                                {
-                                    for ( int iJ = 0; iJ < (iCol - sPackage.length()); iJ++ )
-                                        sB.append("  ");
-                                    
-                                    break;
-                                }
-                                
-                                iCol += 8;
-/**/                                
                             }   // End while..
                             
                             sB.append(sVersion);
-                            
-                            if ( bDoAdd )
-                            {
-                                //System.out.println("(5PackageAr.add()): '"+sB.toString()+"'");
-                                if ( sB.toString().startsWith("emulator") )
-                                {
-                                    // We have the 'emulator' added so
-                                    // don't add another one..
-                                    bAddEmulator = false;
-                                }
-                                
-                                PackageAr.add((String)sB.toString());
-                            }
 
+                            //System.out.println("((A)PackageAr.add()): '"+sB.toString()+"'");
+                            PackageAr.add((String)sB.toString());
+                            
 							// Next..
 							iLoc7 = commandResultS.indexOf(sStart, iLoc7); // 0x0a 0x20 0x20
 							if ( iLoc7 == -1 )
@@ -1677,7 +1697,7 @@ public class SDKManager
 
 							for ( ; Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
 
-							if ( iLoc7 >= iLoc4 ) // 'Available Updates:'
+							if ( iLoc7 >= iLocAvailableUpdates ) // 'Available Updates:'
 								break;
 
 							iStart = iLoc7;
@@ -1685,82 +1705,376 @@ public class SDKManager
 					}
 				}
 				
-				//System.out.println("At cmdline-tools");
+				//System.out.println("\n");
+
+                /**
+                 * Available Obsolete Packages
+                 */
 				
-				// Get 'cmdline-tools'
-                //StringBuffer sB = new StringBuffer();
-                sB = new StringBuffer();
-                StringBuffer sTb;
-                sT = "";
-                sT2 = "";
-                byte[] buf;
-                iLoc2 = 0;
-                iLoc3 = 0;
-                
-                sB.append(sSDKPath);
-                sB.append("/cmdline-tools");
-                File tFile = new File(sB.toString());
-                File tFile2;
-                String[] dirList = null;
-        
-                // Handle 'cmdline-tools' sub-directories..	
-                //if ( tFile.exists() )
-                if ( (tFile != null) && (tFile.exists()) )
-                //if ( false )
+				String sAvblObs = "";
+				
+                if ( iLocAvailableObsolete != -1 )
                 {
-                    if ( tFile != null )
-                        dirList = tFile.list();
+                    AvailableObsoleteAr = new ArrayList();
                     
-                    if ( (dirList != null) && (dirList.length > 0) )
+                    //iLoc15 = commandResultS.indexOf("Location", iLocInstalledObsolete); // Past 'Installed Obsolete Packages:'..
+                    iLoc15 = commandResultS.indexOf("Description", iLocAvailableObsolete);
+                    if (iLoc15 != -1)
                     {
-                        
-                        for ( int iZ = 0; iZ < dirList.length; iZ++ )
+                        while ( true )
                         {
-                            //System.out.println("["+iZ+"]: '"+dirList[iZ]+"'");
-                            if ( dirList[iZ].equals("bin") || dirList[iZ].equals("lib") ||      // Ignore..
-                                    //dirList[iZ].equals("NOTICE.txt") || dirList[iZ].equals("source.properties") )
-                                    dirList[iZ].equals("NOTICE.txt") || dirList[iZ].equals("source.properties") ||
-                                    dirList[iZ].equals("latest") )
-                                continue;
-                             
-                            sTb = new StringBuffer();
-                            sTb.append(sB.toString());
-                            sTb.append("/");
-                            sTb.append(dirList[iZ]);
-                            sTb.append("/source.properties");
-                            //System.out.println("sTb: '"+sTb.toString()+"'");
+                            iLoc15 = commandResultS.indexOf(sStart, iLoc15);    // 0x0a 0x20 0x20
+                            if ( Character.isLetter(commandResultS.charAt(iLoc15 + 3)) )
+                                break;
                             
-                            tFile2 = new File(sTb.toString());
-                            if ( tFile2.exists() )
+                            iLoc15++;    // Next..
+                        }
+                        
+                        iLoc7 = iLoc15 + 3;
+                        iStart = iLoc7;
+                    }
+                    
+                    while ( true )
+                    {
+                        if ( iLoc7 == -1 )
+                            break;
+                        
+                        //System.out.println("(TOP)"+commandResultS.substring(iLoc7, iLoc7 + 15));
+                        for ( ; !Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
+                        sAvblObs = commandResultS.substring(iStart, iLoc7);
+                        //System.out.println("(AvailableObsoleteAr.add()): '"+sAvblObs+"'");
+                        
+                        // Get version..
+                        for ( ; Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
+                        iLoc7 += 2;
+                        iStart2 = iLoc7;
+                        
+                        for ( ; !Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
+                        sVersion = commandResultS.substring(iStart2, iLoc7);
+                        sVersion = sVersion.trim();
+                        //System.out.println("sVersion: '"+sVersion+"'");
+                        sB = new StringBuffer();
+                        sB.append(sAvblObs);
+                        //System.out.println("\nsAvblObs.length(): "+sAvblObs.length());
+                        
+                        iCol = 0;
+                        int iLenDif = 0;
+                        
+                        while ( true )
+                        {
+                            //System.out.println("(D)--TOP--");
+                            //System.out.println("iPrevLength: "+iPrevLength);
+                            //System.out.println("sPackage.length(): '"+sPackage.length()+"'");
+
+                            if ( iCol > sAvblObs.length() )
                             {
-                                buf = readFile(1024, sTb.toString());
-                                if ( (buf != null) && (buf.length > 0) )
+                                if ( (sAvblObs.length() + 3) > iCol )
+                                    ;
+                                else
                                 {
-                                    sT = new String(buf);
-                                    iLoc2 = sT.indexOf("Pkg.Path");
-                                    if ( iLoc2 != -1 )
-                                    {
-                                        iLoc3 = sT.indexOf((int)0x0a, iLoc2);
-                                        if ( iLoc3 != -1 )
-                                        {
-                                            sT2 = sT.substring(iLoc2 + 9, iLoc3);
-                                            sT2 = sT2.trim();
-                                            //System.out.println("(Add)sT2: '"+sT2+"'");
-                                            if ( (InstalledAr != null) && (InstalledAr.size() > 0) )
-                                                InstalledAr.add((String)sT2);
-                                        }
-                                    }
+                                    for ( int iX = 0; iX < (iCol - sAvblObs.length()); iX++ )
+                                        sB.append(SPACING);
+                                    
+                                    iPrevLength = sAvblObs.length() + (iCol - sAvblObs.length());
+                                    iPkgLen = sAvblObs.length();
+                                    
+                                    break;
                                 }
                             }
-                        }   // End for..
-/**/                        
+                            
+                            iCol += 8;
+                                
+                        }   // End while..
                         
+                        sB.append(sVersion);
+                        
+                        
+                        //AvailableObsoleteAr.add((String)sAvblObs);
+                        AvailableObsoleteAr.add((String)sB.toString());
+                        
+                        // Next..
+                        iLoc7 = commandResultS.indexOf(sStart, iLoc7); // 0x0a 0x20 0x20
+                        if ( iLoc7 != -1 )
+                        {
+                            if ( iLoc7 >= iLocAvailableUpdates )
+                                break;
+
+                            for ( ; Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
+                            iStart = iLoc7;
+                        }
+                    }   // End while..
+                }
+
+				
+                // Resolve Updates..
+                String sUpdate2 = "";
+                boolean bMatchedUpdate;
+                boolean bRemove = false;
+                
+                if ( (UpdateAr != null) && (UpdateAr.size() > 0) )
+                {
+                    if ( (PackageAr != null) && (PackageAr.size() > 0) )
+                    {
+                        for ( int iX = 0; iX < UpdateAr.size(); iX++ )
+                        {
+                            //System.out.println("--TOP-- iX: "+iX);
+                            sUpdate2 = (String)UpdateAr.get(iX);
+                            iLoc2 = sUpdate2.indexOf(" ");
+                            if ( iLoc2 != -1 )
+                            {
+                                sT = sUpdate2.substring(0, iLoc2);
+                                sT = sT.trim();
+                            }
+                            
+                            //System.out.println("sUpdate2: '"+sUpdate2+"'");
+                            
+                            bMatchedUpdate = false;
+                            bRemove = false;
+                            
+                            int iMatch = 0;
+
+                            //for ( int iZ = 0; iZ < PackageAr.size(); iZ++ )
+                            for ( int iZ = 0; iZ < PackageAr.size(); )
+                            {
+                                //System.out.println("--TOP-- iZ: "+iZ);
+                                sT2 = (String)PackageAr.get(iZ);
+                                //System.out.println("PackageAr.get(iZ): '"+(String)PackageAr.get(iZ)+"'");
+                                
+                                
+                                iLoc2 = sT2.indexOf(" ");
+                                if ( iLoc2 != -1 )
+                                {
+                                    sT2 = sT2.substring(0, iLoc2);
+                                    sT2 = sT2.trim();
+                                }
+                                
+                                //System.out.println("sT: '"+sT+"'");
+                                //System.out.println("(get())sT2: '"+sT2+"'");
+                                
+                                if ( sT.equals(sT2) )
+                                {
+                                    if ( bRemove )
+                                    {
+                                        // We hit a duplicate, so remove()..
+                                        //System.out.println("Doing remove() on: '"+(String)PackageAr.get(iZ)+"'");
+                                        PackageAr.remove(iZ);
+                                        bRemove = false;    // Reset..
+                                        continue;
+                                    }
+                                    else
+                                    {
+
+                                        bMatchedUpdate = true;
+                                        // Update matched entry, replace..
+                                        
+                                        //System.out.println("Replaced with: '"+sUpdate2+"'");
+                                        PackageAr.set(iZ, (String)sUpdate2);
+                                        bRemove = true;
+                                    }
+                                }
+                                
+                                iZ++;   // Next..
+                                
+                            }   // End for..
+                            
+                            //System.out.println("(Dropped out)iMatch: "+iMatch);
+                            
+                            if ( bMatchedUpdate == false )
+                            {
+                                // No match, so add..
+                                //System.out.println("((B)PackageAr.add()): '"+sUpdate2+"'");
+                                PackageAr.add((String)sUpdate2);
+                                //System.out.println("Added: '"+sUpdate2+"'");
+                            }
+                        }   // End for..
                     }
                 }
 /**/                
+
+                String sIO = "";
+                boolean bMatch = false;
+/*
+                if ( InstalledObsoleteAr == null )
+                    System.out.println("InstalledObsoleteAr null");
+                else
+                    System.out.println("InstalledObsoleteAr.size(): "+InstalledObsoleteAr.size());
+/**/                        
+                        
+                if ( (InstalledObsoleteAr != null) && (InstalledObsoleteAr.size() > 0) )
+                {
+                    if ( (InstalledAr != null) && (InstalledAr.size() > 0) )
+                    {
+                        for ( int iX = 0; iX < InstalledObsoleteAr.size(); iX++ )
+                        {
+                            //System.out.println("--TOP-- iX: "+iX);
+                            sIO = (String)InstalledObsoleteAr.get(iX);
+                            //System.out.println("sIO: '"+sIO+"'");
+                            //sT = sIO;
+                            
+                            iLoc2 = sIO.indexOf(" ");
+                            if ( iLoc2 != -1 )
+                            {
+                                sT = sIO.substring(0, iLoc2);
+                                sT = sT.trim();
+                            }
+/**/                            
+                            //System.out.println("\nsT: '"+sT+"'");
+                            
+                            bMatch = false;
+                            for ( int iZ = 0; iZ < InstalledAr.size(); iZ++ )
+                            {
+                                sInstalled = (String)InstalledAr.get(iZ);
+                                iLoc2 = sInstalled.indexOf(" ");
+                                if ( iLoc2 != -1 )
+                                {
+                                    sT2 = sInstalled.substring(0, iLoc2);
+                                    sT2 = sT2.trim();
+                                }
+                                
+                                //System.out.println("sT2: '"+sT2+"'");
+                                if ( sT.equals(sT2) )
+                                {
+                                    //System.out.println("--Match--");
+                                    bMatch = true;
+                                    break;
+                                }
+                            }
+                            
+                            if ( bMatch == false )
+                            {
+                                //InstalledAr.add((String)sInstalled);
+                                InstalledAr.add((String)sIO);
+                                //System.out.println("(Installed Obsolete InstalledAr.add())sIO: '"+sIO+"'");
+                            }
+                        }   // End for..
+                    }
+                }
+
+                        
+                        
+
+                String sInst = "";
+                String sPkg = "";
+                //boolean bMatch = false;
+                
+                
+                if ( (InstalledAr != null) && (InstalledAr.size() > 0) )
+                {
+                    if ( (PackageAr != null) && (PackageAr.size() > 0) )
+                    {
+                        //System.out.println("InstalledAr / PackageAr");
+                        for ( int iX = 0; iX < InstalledAr.size(); iX++ )
+                        {
+                            //System.out.println("--TOP-- iX: "+iX);
+                            sInst = (String)InstalledAr.get(iX);
+                            iLoc2 = sInst.indexOf(" ");
+                            if ( iLoc2 != -1 )
+                            {
+                                sT = sInst.substring(0, iLoc2);
+                                sT = sT.trim();
+                            }
+                            
+                            //System.out.println("\nsT: '"+sT+"'");
+                            
+                            bMatch = false;
+                            for ( int iZ = 0; iZ < PackageAr.size(); iZ++ )
+                            {
+                                sPkg = (String)PackageAr.get(iZ);
+                                iLoc2 = sPkg.indexOf(" ");
+                                if ( iLoc2 != -1 )
+                                {
+                                    sT2 = sPkg.substring(0, iLoc2);
+                                    sT2 = sT2.trim();
+                                }
+                                
+                                //System.out.println("(Package)sT2: '"+sT2+"'");
+                                if ( sT.equals(sT2) )
+                                {
+                                    //System.out.println("--Match--");
+                                    bMatch = true;
+                                    break;
+                                }
+                            }
+                            
+                            if ( bMatch == false )
+                            {
+                                // Installed wasn't in Packages so add..
+                                PackageAr.add((String)sInst);
+                                //System.out.println("((C)PackageAr.add()): '"+sInst+"'");
+                                //System.out.println("(Installs PackageAr.add())sInst: '"+sInst+"'");
+                            }
+                        }
+                        
+                        //System.out.println("Dropped out");
+                    }
+                }
+
+                String sAO = "";
+/*
+                if ( AvailableObsoleteAr == null )
+                    System.out.println("AvailableObsoleteAr null");
+                else
+                    System.out.println("AvailableObsoleteAr.size(): "+AvailableObsoleteAr.size());
+/**/                        
+                        
+                if ( (AvailableObsoleteAr != null) && (AvailableObsoleteAr.size() > 0) )
+                {
+                    if ( (PackageAr != null) && (PackageAr.size() > 0) )
+                    {
+                        for ( int iX = 0; iX < AvailableObsoleteAr.size(); iX++ )
+                        {
+                            //System.out.println("--TOP-- iX: "+iX);
+                            sAO = (String)AvailableObsoleteAr.get(iX);
+                            //System.out.println("sAO: '"+sAO+"'");
+                            //sT = sAO;
+                            
+                            iLoc2 = sAO.indexOf(" ");
+                            if ( iLoc2 != -1 )
+                            {
+                                sT = sAO.substring(0, iLoc2);
+                                sT = sT.trim();
+                            }
+/**/                            
+                            //System.out.println("\nsT: '"+sT+"'");
+                            
+                            bMatch = false;
+                            for ( int iZ = 0; iZ < PackageAr.size(); iZ++ )
+                            {
+                                sPkg = (String)PackageAr.get(iZ);
+                                iLoc2 = sPkg.indexOf(" ");
+                                if ( iLoc2 != -1 )
+                                {
+                                    sT2 = sPkg.substring(0, iLoc2);
+                                    sT2 = sT2.trim();
+                                }
+                                
+                                //System.out.println("sT2: '"+sT2+"'");
+                                if ( sT.equals(sT2) )
+                                {
+                                    //System.out.println("--Match--");
+                                    bMatch = true;
+                                    break;
+                                }
+                            }
+                            
+                            if ( bMatch == false )
+                            {
+                                // Wasn't in Packages so add..
+                                PackageAr.add((String)sAO);
+                                //System.out.println("((D)PackageAr.add()): '"+sAO+"'");
+                                //System.out.println("(Add)sAO: '"+sAO+"'");
+                            }
+                        }   // End for..
+                        
+                        //System.out.println("Dropped out");
+                    }
+                }
 			}
 
 			bGetPackagesFinished = true;
+			
+			//for ( int iG = 0; iG < PackageAr.size(); iG++ )
+			    //System.out.println("PackageAr ["+iG+"]: '"+(String)PackageAr.get(iG)+"'");
 			
 			//System.out.println("\nExiting GetPackagesBgThread");
 			//if ( operationRequestLatch != null )
@@ -1768,7 +2082,7 @@ public class SDKManager
 
 		}
 	} //}}}
-
+	
 	//{{{   GetSystemImagesBgThread
 	@SuppressWarnings("unchecked")
 	class GetSystemImagesBgThread extends Thread
@@ -1948,7 +2262,7 @@ public class SDKManager
 		}
 
 		StringBuffer sB = new StringBuffer();
-		sB.append("  ");
+		sB.append(SPACING);
 		sB.append(sSDKPath);
 		statusLabel.setText(sB.toString());
 
@@ -1965,6 +2279,7 @@ public class SDKManager
 			boolean isSelected,
 			boolean cellHasFocus)
 		{
+		    
 			String sT = "";
 			String sT2 = "";
 			int iLoc2 = 0;
@@ -1989,50 +2304,67 @@ public class SDKManager
                 sValue = sValue.substring(0, iLoc2);
                 sValue = sValue.trim();
             }
+            
+            //System.out.println("\nsValue: '"+sValue+"'");
+            bUpdateMatch = false;
+            if ((UpdateAr != null) && (UpdateAr.size() > 0))
+            {
+                //System.out.println("UpdateAr.size(): "+UpdateAr.size());
+                for ( int iX = 0; iX < UpdateAr.size(); iX++ )
+                {
+                    sT2 = (String)UpdateAr.get(iX);
+                    iLoc2 = sT2.indexOf(" ");
+                    if ( iLoc2 != -1 )
+                        sT2 = sT2.substring(0, iLoc2);
+                    
+                    //System.out.println("(UpdateAr.get()): '"+sT2+"'");
+                    if (sT2.equals(sValue))
+                    {
+                        //System.out.println("--Update Match--");
+                        c.setBackground(gold);
+                        bUpdateMatch = true;
+                        break;
+                    }
+                }
+            }
+            
+/*            
+            if ( InstalledAr == null )
+                System.out.println("InstalledAr null");
+            else
+                System.out.println("InstalledAr.size(): "+InstalledAr.size());
+/**/            
+            
 
-			if ( (InstalledAr != null) && (InstalledAr.size() > 0) )
-			{
-				for ( int iJ = 0; iJ < InstalledAr.size(); iJ++ )
-				{
-					sT = (String)InstalledAr.get(iJ);
-					iLoc2 = sT.indexOf(" ");
-					if ( iLoc2 != -1 )
-					{
-					    sT = sT.substring(0, iLoc2);
-					    sT = sT.trim();
-					}
-
-                    //System.out.println("sT: '"+sT+"'");	
-                    //System.out.println("sValue: '"+sValue+"'");
-					if ( sT.equals(sValue) )
-					{
-						bUpdateMatch = false;
-						if ((UpdateAr != null) && (UpdateAr.size() > 0))
-						{
-							for ( int iX = 0; iX < UpdateAr.size(); iX++ )
-							{
-								sT2 = (String)UpdateAr.get(iX);
-                                iLoc2 = sT2.indexOf(" ");
-                                if ( iLoc2 != -1 )
-                                    sT2 = sT2.substring(0, iLoc2);
-								
-								if (sT2.equals(sT))
-								{
-									bUpdateMatch = true;
-									break;
-								}
-							}
-						}
-
-						if ( bUpdateMatch )
-							c.setBackground(gold);
-						else
-							c.setBackground(green);
-
-						break;
-					}
-				}
-			}
+            if ( bUpdateMatch == false )
+            {
+                if ( (InstalledAr != null) && (InstalledAr.size() > 0) )
+                {
+                    //System.out.println("InstalledAr.size(): "+InstalledAr.size());
+                    for ( int iJ = 0; iJ < InstalledAr.size(); iJ++ )
+                    {
+                        sT = (String)InstalledAr.get(iJ);
+                        //System.out.println("\n(InstalledAr.get()): '"+sT+"'");
+                        iLoc2 = sT.indexOf(" ");
+                        if ( iLoc2 != -1 )
+                        {
+                            sT = sT.substring(0, iLoc2);
+                            sT = sT.trim();
+                            //System.out.println("sT: '"+sT+"'");
+                            //System.out.println("\n(InstalledAr.get()): '"+sT+"'");
+                            //System.out.println("sValue: '"+sValue+"'");
+                        }
+    
+                        if ( sT.equals(sValue) )
+                        {
+                            //System.out.println("--Installed Match--");
+                            c.setBackground(green);
+                            break;
+                        }
+                    }
+                }
+            }
+/**/            
 
 			return c;
 		}
@@ -2099,12 +2431,12 @@ public class SDKManager
 		consoleTextArea = new TextArea();
 		consoleTextArea.setEditable(false);
 
-		iFontSize = 13;
-		Font defaultFont = new Font("Monospaced", Font.BOLD, iFontSize);
+		Font defaultFont = new Font("Monospaced", Font.BOLD, 12);
+		//Font defaultFont = new Font("Dialog", Font.BOLD, iFontSize);
 		consoleTextArea.setFont(defaultFont);
 
 		consoleTextArea.setRows(20);
-		consoleTextArea.setColumns(105);
+		consoleTextArea.setColumns(DISPLAY_WIDTH);
 		consoleTextArea.setForeground(Color.WHITE);
 		consoleTextArea.setBackground(Color.BLACK);
 
@@ -2802,7 +3134,7 @@ public class SDKManager
 		for ( int iJ = 0; iJ < PackageAr.size(); iJ++ )
 		{
 			tSa[iJ] = (String) PackageAr.get(iJ);
-			//System.out.println("["+iJ+"]: '"+tSa[iJ]+"'");
+			//System.out.println("(PackageAr)["+iJ+"]: '"+tSa[iJ]+"'");
 		}
 
 		packageJList = new JList(tSa);
@@ -2813,7 +3145,8 @@ public class SDKManager
 		//packageJList.setFont(new Font("SansSerif", Font.BOLD, 12));
 		//packageJList.setFont(new Font("Serif", Font.BOLD, 12));
 		packageJList.setCellRenderer(new ColorCellRenderer());
-		packageJList.setVisibleRowCount(8);
+		//packageJList.setVisibleRowCount(8);
+		packageJList.setVisibleRowCount(10);
 		packageJList.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
 		packageScrollPane.getViewport().setView(packageJList);
 
@@ -3081,7 +3414,6 @@ public class SDKManager
                     {
                         //System.out.println("["+iZ+"]: '"+dirList[iZ]+"'");
                         if ( dirList[iZ].equals("bin") || dirList[iZ].equals("lib") ||
-                                //dirList[iZ].equals("NOTICE.txt") || dirList[iZ].equals("source.properties") )
                                 dirList[iZ].equals("NOTICE.txt") || dirList[iZ].equals("source.properties") ||
                                 dirList[iZ].equals("latest") )
                             continue;
@@ -3091,7 +3423,10 @@ public class SDKManager
                     
                     //System.out.println("sLastDir: '"+sLastDir+"'");
                     if ( sLastDir.equals("") )
+                    {
                         sToolsDir = "cmdline-tools";    // No version directory..
+                        //System.out.println("(4)sToolsDir set: '"+sToolsDir+"'");
+                    }
                     else
                     {
                         StringBuffer sB2 = new StringBuffer();
@@ -3100,6 +3435,7 @@ public class SDKManager
                         sB2.append(sLastDir);
                         
                         sToolsDir = sB2.toString();
+                        //System.out.println("(5)sToolsDir set: '"+sToolsDir+"'");
                     }
                 }
 			}
@@ -3112,6 +3448,7 @@ public class SDKManager
 				if (tFile.exists())
 				{
 					sToolsDir = "tools";
+					//System.out.println("(6)sToolsDir set: '"+sToolsDir+"'");
 				}
 			}
 			
@@ -3851,6 +4188,9 @@ public class SDKManager
                     }
                 }
 				
+                InstalledAr = new ArrayList();
+                PackageAr = new ArrayList();
+                
 				packagesThread = new PackagesThread();
 				packagesThread.start();
 
@@ -3977,6 +4317,7 @@ public class SDKManager
 					sb.append("\n");
 				
 				//System.out.println("sb: '"+sb.toString()+"'");
+
 				bHideOutput = false;
 				interactiveRequestLatch = new CountDownLatch(1);
 				sInternalCommand = sb.toString();
@@ -3990,6 +4331,7 @@ public class SDKManager
 				}
 				catch (InterruptedException ie)
 				{}
+/**/
 
 				packageFrame.setVisible(false);
 				packageFrame.dispose();

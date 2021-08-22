@@ -44,7 +44,7 @@ Select 'Manage SDK->Packages' and check if the 'platform-tools' package was inst
 if it's there jump to below to finish accepting the licenses,
 otherwise select 'platform-tools', check "Accept licenses" and hit Submit.
 
-Finish accepting licenses:
+Complete accepting licenses:
 Then select 'Manage SDK->Accept Licenses', check "Accept Licenses" and hit Submit.
 
 This will ensure that many essential things, like the 'emulator',
@@ -60,6 +60,12 @@ to see if that fixes it, or by trying to set your firewall to not block it.
 It can interact with the SDK that Android Studio uses but it is
 recommended to use Android Studio to manage that.
 
+** Note **
+    On some early versions of the SDK, sometimes
+    the Package names get truncated with ellipsis, if they do
+    it can't convert it back, so selecting it won't work.
+    
+    
 Packages:
 
 The packages highlighted in green are packages that are currently installed.
@@ -100,11 +106,6 @@ it will do an Enter for the default choice for the:
 prompt.
 
 
-SDK Manager 1.1.3:  
-    Fixed multiple 'emulator' listings in package list.
-    Improved AVD operations.
-    New Emulator options.
-
 SDK Manager 1.1.4:
     Improved updating packages.
     New Emulator options.
@@ -114,6 +115,11 @@ SDK Manager 1.1.5:
     which is the last numbered version.
     Improved getting Packages.
 
+SDK Manager 1.1.7:
+    Improved showing 'tools' package.
+    Improved getting packages for 'Manage SDK->Packages'.
+    Other improvements.
+    
     
 Please let me know of any issues so that
 I can try to fix it.
