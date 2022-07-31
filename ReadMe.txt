@@ -6,6 +6,16 @@ launch AVDs.
 Go into config.properties and fill in your paths to Java
 and the SDK that you want to manage.
 
+** Note **
+    In new versions of the SDK
+    cmdline-tools/bin/avdmanager list device
+    does not work, but now you can add the old
+    'tools' package and that version works.
+
+    Go into config.properties and set 'use_tools_bin_directory' to "true"
+    and 'include_obsolete' to "true" to get it to include the old 'tools' package.
+    
+
 Setting up your Android SDK for the first time:
 
 The latest SDK version: 
@@ -43,6 +53,11 @@ and hit Submit.
 Select 'Manage SDK->Packages' and check if the 'platform-tools' package was installed, from above,
 if it's there jump to below to finish accepting the licenses,
 otherwise select 'platform-tools', check "Accept licenses" and hit Submit.
+
+Select 'Manage SDK->Packages' and select the 'tools' package.
+You have to go into config.properties and set 'include_obsolete' to "true"
+in order to get the old 'tools' package to appear in the list.
+Check "Accept licenses" and hit Submit.    
 
 Complete accepting licenses:
 Then select 'Manage SDK->Accept Licenses', check "Accept Licenses" and hit Submit.
@@ -106,20 +121,19 @@ it will do an Enter for the default choice for the:
 prompt.
 
 
-SDK Manager 1.1.4:
-    Improved updating packages.
-    New Emulator options.
-
-SDK Manager 1.1.5:
-    Now shows all installed 'cmdline-tools' packages except for 'latest',
-    which is the last numbered version.
-    Improved getting Packages.
 
 SDK Manager 1.1.7:
     Improved showing 'tools' package.
     Improved getting packages for 'Manage SDK->Packages'.
     Other improvements.
     
+SDK Manager 1.1.8:
+    Added option to use the tools/bin directory as the default as sometimes
+    using cmdline-tools/bin might have issues.
+
+SDK Manager 1.1.9:
+    New fixes that allow 'Manage AVDs->Create', and possibly more, to now work. 
+
     
 Please let me know of any issues so that
 I can try to fix it.

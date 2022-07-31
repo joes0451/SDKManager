@@ -5,7 +5,7 @@
 /**
  *	  SDK Manager is a manager for the Android SDK
  *
- *	  Copyright (c) 2021 Joseph Siebenmann
+ *	  Copyright (c) 2022 Joseph Siebenmann
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General  Public License as published by
@@ -173,6 +173,7 @@ public class SDKManager
 	static volatile String sDisableVMAcceleration;
 	static volatile String sNoCachePartition;
 	static volatile String sWipeData;
+	static volatile String sUseToolsBinDirectory;
 
 	static volatile boolean bBreakOut;
 	static volatile boolean bIncludeObsolete;
@@ -250,13 +251,14 @@ public class SDKManager
 	//{{{   SDKManager() constructor
 	public SDKManager()
 	{
+	    //System.out.println("SDKManager() constructor");
 		// Determine OS..
 		String sOs = System.getProperty("os.name").toLowerCase();
 		if (sOs.contains("win"))
 			iOS = WINDOWS;
 		else if ((sOs.contains("nix")) ||
-			(sOs.contains("nux")) ||
-			(sOs.contains("mac")))
+                (sOs.contains("nux")) ||
+                (sOs.contains("mac")))
 			iOS = LINUX_MAC;
 
 		bTextAreaInit = true;
@@ -266,6 +268,7 @@ public class SDKManager
 		sPackageChannel = "";
 		sIncludeObsolete = "";
 		sShowCommandResults = "";
+		sUseToolsBinDirectory = "";
 		sUseHTTPS = "";
 		sUseForce32Bit = "";
 		sAccel = "";
@@ -306,7 +309,7 @@ public class SDKManager
                         
                     sLastDir = dirList[iZ];
                 }
-/*
+/*                
                 if ( sLastDir == null )
                     System.out.println("sLastDir null");
                 else
@@ -315,9 +318,12 @@ public class SDKManager
                 // Like:  'latest'
                 if ( sLastDir.equals("") )
                 {
-                    //sToolsDir = "cmdline-tools";    // No version directory..
-                    sToolsDir = "tools/bin";   // Default..
-                    //System.out.println("(1)sToolsDir set: '"+sToolsDir+"'");
+                    sB = new StringBuffer();
+                    sB.append(sSDKPath);
+                    sB.append("/tools");
+                    tFile = new File(sB.toString());
+                    if ( tFile.exists() )
+                        sToolsDir = "tools";
                 }
                 else
                 {
@@ -359,12 +365,14 @@ public class SDKManager
 		{
 			//System.out.println("\nGetAVDsBgThread run()");
 			StringBuffer sb = new StringBuffer();
+			StringBuffer sB;
 			String sT = "";
 			String sName = "";
 			String sDevice = "";
 			String sPath = "";
 			String sTarget = "";
 			String sBasedOn = "";
+			String sTDir = "";
 			int iLoc2 = 0;
 			int iLoc3 = 0;
 			int iLoc4 = 0;
@@ -376,13 +384,30 @@ public class SDKManager
 			AVDInfo aVDInfo;
 
 			sb = new StringBuffer();
+			
+			if ( (sUseToolsBinDirectory != null) && (sUseToolsBinDirectory.equals("true")) )
+			{
+			    sB = new StringBuffer();
+			    sB.append(sSDKPath);
+			    sB.append("/tools");
+			    
+			    File tFile = new File(sB.toString());
+			    if ( tFile.exists() )
+			        sTDir = "tools";
+			    else
+			        sTDir = sToolsDir;
+			}
+			else
+			    sTDir = sToolsDir;
+			    
 
 			if (iOS == LINUX_MAC)
 			{
 				sb.append("export PATH=${PATH}:");
 				sb.append(sSDKPath);
 				sb.append("/");
-				sb.append(sToolsDir);
+				//sb.append(sToolsDir);
+				sb.append(sTDir);
 				sb.append("/bin");
 
 				sb.append(";export JAVA_HOME=");
@@ -403,7 +428,8 @@ public class SDKManager
 				//sb.append("SET PATH=");
 				sb.append(sSDKPath); // Like: "C:/android-sdk-wind"
 				sb.append("/");
-				sb.append(sToolsDir);
+				//sb.append(sToolsDir);
+				sb.append(sTDir);
 				sb.append("/bin");
 				//sb.append(";%PATH%");
 
@@ -444,7 +470,7 @@ public class SDKManager
 					break;
 			}
 
-			//System.out.println("Dropped out");
+			//System.out.println("GetAVDsBgThread Dropped out");
 /*                
             // Wait for Thread to finish..
             try
@@ -612,19 +638,39 @@ public class SDKManager
 		{
 			//System.out.println("\nGetDevicesBgThread run()");
 			StringBuffer sb = new StringBuffer();
+			StringBuffer sB;
 			String sT = "";
+			String sTDir = "";
 			int iLoc2 = 0;
 			int iLoc3 = 0;
 			int iLoc4 = 0;
 
 			sb = new StringBuffer();
 
+			if ( (sUseToolsBinDirectory != null) && (sUseToolsBinDirectory.equals("true")) )
+			{
+			    sB = new StringBuffer();
+			    sB.append(sSDKPath);
+			    sB.append("/tools");
+			    
+			    File tFile = new File(sB.toString());
+			    if ( tFile.exists() )
+			        sTDir = "tools";
+			    else
+			        sTDir = sToolsDir;
+			}
+			else
+			    sTDir = sToolsDir;
+			
+			//System.out.println("sToolsDir: '"+sToolsDir+"'");
+			
 			if (iOS == LINUX_MAC)
 			{
 				sb.append("export PATH=${PATH}:");
 				sb.append(sSDKPath);
 				sb.append("/");
-				sb.append(sToolsDir);
+				//sb.append(sToolsDir);
+				sb.append(sTDir);
 				sb.append("/bin");
 
 				sb.append(";export JAVA_HOME=");
@@ -645,7 +691,8 @@ public class SDKManager
 				//sb.append("SET PATH=");
 				sb.append(sSDKPath);
 				sb.append("/");
-				sb.append(sToolsDir);
+				//sb.append(sToolsDir);
+				sb.append(sTDir);
 				sb.append("/bin");
 				//sb.append(";%PATH%");
 
@@ -662,6 +709,9 @@ public class SDKManager
 				sb.append("list device");
 				sb.append("\n");
 			}
+			
+			
+			//System.out.println("sb: '"+sb.toString()+"'");
 
 			commandRequestLatch = new CountDownLatch(1);
 			sInternalCommand = sb.toString();
@@ -676,7 +726,7 @@ public class SDKManager
 			catch (InterruptedException ie)
 			{}
 
-/*		    
+/*		
             if ( commandResultS == null )
                 System.out.println("commandResultS null");
             else
@@ -764,6 +814,13 @@ public class SDKManager
             }
 /**/
 
+/*
+            if ( AVDsAr == null )
+                System.out.println("AVDsAr null");
+            else
+                System.out.println("AVDsAr.size(): "+AVDsAr.size());
+/**/                
+
 			if ((AVDsAr != null) && (AVDsAr.size() > 0))
 			{
 				iAdvSelectedIndex = 0;
@@ -802,6 +859,8 @@ public class SDKManager
 				avdJList = new JList(tSa);
 				avdJList.setFont(new Font("Monospaced", Font.BOLD, 12));
 				avdJList.setVisibleRowCount(5);
+				avdJList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+				//avdJList.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
 				avdJList.addListSelectionListener(createSelectionListener);
 				avdJList.setSelectedIndex(0);
 
@@ -821,6 +880,8 @@ public class SDKManager
 					"AVDs",
 					JOptionPane.ERROR_MESSAGE);
 			}
+			
+			//System.out.println("\nExiting AVDsThread");
 		}
 	} //}}}
 
@@ -891,6 +952,7 @@ public class SDKManager
 	{
 		public void run()
 		{
+		    //System.out.println("\nCreateThread run()");
 			RefreshProperties();
 
 			bHideOutput = true;
@@ -1101,7 +1163,14 @@ public class SDKManager
                     //System.out.println("(3)sToolsDir set: '"+sToolsDir+"'");
                 }
             }
-/*            
+ 
+            // Note:
+            // In this case the 'tools' directory doesn't exist yet
+            // so we want to use 'cmdline-tools'..
+			//if ( (sUseToolsBinDirectory != null) && (sUseToolsBinDirectory.equals("true")) )
+			    //sToolsDir = "tools";
+
+/*			    
             if ( sToolsDir == null )
                 System.out.println("sToolsDir null");
             else
@@ -1909,7 +1978,6 @@ public class SDKManager
                             //System.out.println("--TOP-- iX: "+iX);
                             sIO = (String)InstalledObsoleteAr.get(iX);
                             //System.out.println("sIO: '"+sIO+"'");
-                            //sT = sIO;
                             
                             iLoc2 = sIO.indexOf(" ");
                             if ( iLoc2 != -1 )
@@ -2091,13 +2159,30 @@ public class SDKManager
 		{
 			//System.out.println("\nGetSystemImagesBgThread run()");
 			StringBuffer sb = new StringBuffer();
+			StringBuffer sB;
 			String sT = "";
+			String sTDir = "";
 			int iLoc2 = 0;
 			int iLoc3 = 0;
 			int iLoc4 = 0;
 			int iLoc5 = 0;
 			int iLoc6 = 0;
 			int iStart = 0;
+
+			if ( (sUseToolsBinDirectory != null) && (sUseToolsBinDirectory.equals("true")) )
+			{
+			    sB = new StringBuffer();
+			    sB.append(sSDKPath);
+			    sB.append("/tools");
+			    
+			    File tFile = new File(sB.toString());
+			    if ( tFile.exists() )
+			        sTDir = "tools";
+			    else
+			        sTDir = sToolsDir;
+			}
+			else
+			    sTDir = sToolsDir;
 
 			sb = new StringBuffer();
 
@@ -2106,7 +2191,8 @@ public class SDKManager
 				sb.append("export PATH=${PATH}:");
 				sb.append(sSDKPath);
 				sb.append("/");
-				sb.append(sToolsDir);
+				//sb.append(sToolsDir);
+				sb.append(sTDir);
 				sb.append("/bin");
 
 				sb.append(";export JAVA_HOME=");
@@ -2134,7 +2220,8 @@ public class SDKManager
 				//sb.append("SET PATH=");
 				sb.append(sSDKPath);
 				sb.append("/");
-				sb.append(sToolsDir);
+				//sb.append(sToolsDir);
+				sb.append(sTDir);
 				sb.append("/bin");
 				//sb.append(";%PATH%");
 
@@ -2237,6 +2324,17 @@ public class SDKManager
 			sSDKPath = processPath(prop.getProperty("android_sdk_path"));
 			sJavaPath = processPath(prop.getProperty("java_path"));
 			sIncludeObsolete = processPath(prop.getProperty("include_obsolete"));
+			
+			// Check if 'tools' directory exists..
+            StringBuffer sB = new StringBuffer();
+            sB.append(sSDKPath);
+            sB.append("/tools");
+            File tFile = new File(sB.toString());
+            if ( tFile.exists() )
+                sUseToolsBinDirectory = processPath(prop.getProperty("use_tools_bin_directory"));
+            else
+                sUseToolsBinDirectory = "false";
+                
 			sShowCommandResults = processPath(prop.getProperty("show_command_results"));
 			sPackageChannel = processPath(prop.getProperty("package_channel"));
 			sUseHTTPS = processPath(prop.getProperty("use_https"));
@@ -2608,7 +2706,7 @@ public class SDKManager
                             if ( sBOut.substring(sBOut.length() - 10, sBOut.length() - 1).contains("(y/N)") )
                             {
                                 // Reply for accept license agreement
-                                System.out.println("===Sending reply===");
+                                //System.out.println("===Sending reply===");
                                 if (((acceptLicensesCheckBox != null) && (acceptLicensesCheckBox.isSelected())) ||
                                     ((finalAcceptLicensesCheckBox != null) && (finalAcceptLicensesCheckBox.isSelected())))
                                 {
@@ -2632,7 +2730,7 @@ public class SDKManager
                             else if (sBOut.substring(sBOut.length() - 10, sBOut.length() - 1).contains("[no]"))
                             {
                                 // Reply for create avd:  'Do you wish to create a custom hardware profile? [no]'
-                                System.out.println("===Sending reply===");
+                                //System.out.println("===Sending reply===");
                                 outputStream.write(bReplyDA); // Enter
                                 outputStream.flush();
     
@@ -2813,6 +2911,7 @@ public class SDKManager
 
 							sBOut.append(sB.toString());
 
+							
 /*							
                             System.out.println("\n\n");
                             char cTChr;
@@ -3451,11 +3550,12 @@ public class SDKManager
 					//System.out.println("(6)sToolsDir set: '"+sToolsDir+"'");
 				}
 			}
-			
+
 			//System.out.println("sToolsDir: '"+sToolsDir+"'");
 			
 			if (CREATE_ADV.equals(sActionCommand))
 			{
+			    //System.out.println("CREATE_ADV");
 				// If Create Dialog is open, close it..
 				if ( createFrame != null )
 				{
@@ -3473,13 +3573,31 @@ public class SDKManager
 			{
 				//System.out.println("CREATE_SUBMIT");
 				StringBuffer sb = new StringBuffer();
+				//StringBuffer sB;
 				String sName = "";
 				String sSystemImage = "";
 				String sDevice = "";
+				String sTDir = "";
 				int[] iAr;
 				int iLoc2 = 0;
 				boolean bIsSelected;
 				ListModel model;
+
+                if ( (sUseToolsBinDirectory != null) && (sUseToolsBinDirectory.equals("true")) )
+                {
+                    sB = new StringBuffer();
+                    sB.append(sSDKPath);
+                    sB.append("/tools");
+                    
+                    //File tFile = new File(sB.toString());
+                    tFile = new File(sB.toString());
+                    if ( tFile.exists() )
+                        sTDir = "tools";
+                    else
+                        sTDir = sToolsDir;
+                }
+                else
+                    sTDir = sToolsDir;
 
 				sb = new StringBuffer();
 
@@ -3488,7 +3606,8 @@ public class SDKManager
 					sb.append("export PATH=${PATH}:");
 					sb.append(sSDKPath);
 					sb.append("/");
-					sb.append(sToolsDir);
+					//sb.append(sToolsDir);
+					sb.append(sTDir);
 					sb.append("/bin");
 
 					sb.append(";export JAVA_HOME=");
@@ -3509,7 +3628,8 @@ public class SDKManager
 					//sb.append("SET PATH=");
 					sb.append(sSDKPath);
 					sb.append("/");
-					sb.append(sToolsDir);
+					//sb.append(sToolsDir);
+					sb.append(sTDir);
 					sb.append("/bin");
 					//sb.append(";%PATH%");
 
@@ -3635,6 +3755,13 @@ public class SDKManager
 				//System.out.println("ACCEPT_LICENSES_SUBMIT");
 				StringBuffer sb;
 
+                // Note:
+                // In this case the 'tools' directory doesn't exist yet
+                // so we want to use 'cmdline-tools'..
+				
+                //if ( (sUseToolsBinDirectory != null) && (sUseToolsBinDirectory.equals("true")) )
+                    //sToolsDir = "tools";
+
 				sb = new StringBuffer();
 
 				if (iOS == LINUX_MAC)
@@ -3738,11 +3865,13 @@ public class SDKManager
 			{
 				//System.out.println("AVDS_SUBMIT");
 				StringBuffer sb = new StringBuffer();
+				//StringBuffer sB;
 				String sAVDName = "";
 				String sABI = "";
 				String sBasedOn = "";
 				String sVersion = "";
 				String sAPI = "";
+				String sTDir = "";
 				//String sT = "";
 				String[] tSa;
 				StringBuffer Sb;
@@ -3843,6 +3972,21 @@ public class SDKManager
 					    bUseEmulatorDirectory = true;
 					}
 					
+                    if ( (sUseToolsBinDirectory != null) && (sUseToolsBinDirectory.equals("true")) )
+                    {
+                        sB = new StringBuffer();
+                        sB.append(sSDKPath);
+                        sB.append("/tools");
+                        
+                        //File tFile = new File(sB.toString());
+                        tFile = new File(sB.toString());
+                        if ( tFile.exists() )
+                            sTDir = "tools";
+                        else
+                            sTDir = sToolsDir;
+                    }
+                    else
+                        sTDir = sToolsDir;
 
 					if ( iOS == LINUX_MAC )
 					{
@@ -3850,18 +3994,13 @@ public class SDKManager
 						//sb.append("export PATH=${PATH}:");
 						sb.append(sSDKPath);
 						sb.append("/");
+						
 						if ( bUseEmulatorDirectory )
 						    sb.append("emulator");
 						else
-						    sb.append(sToolsDir);
+						    //sb.append(sToolsDir);
+						    sb.append(sTDir);
 
-/*                        
-                        sb.append(";export PATH=${PATH}:");
-                        sb.append(sSDKPath);
-                        sb.append("/");
-                        sb.append(sToolsDir);
-                        sb.append("/bin");
-/**/
 						sb.append(";export JAVA_HOME=");
 						sb.append(sJavaPath);
 
@@ -3881,10 +4020,12 @@ public class SDKManager
 						//sb.append("SET PATH=");
 						sb.append(sSDKPath);
 						sb.append("/");
+						
 						if ( bUseEmulatorDirectory )
 						    sb.append("emulator");
 						else
-						    sb.append(sToolsDir);
+						    //sb.append(sToolsDir);
+						    sb.append(sTDir);
 						//sb.append(";%PATH%");
 
 /*                        
@@ -4087,13 +4228,30 @@ public class SDKManager
 				if ( bIsDeleteSelected )
 				{
 					bDoCommand = true;
+					
+                    if ( (sUseToolsBinDirectory != null) && (sUseToolsBinDirectory.equals("true")) )
+                    {
+                        sB = new StringBuffer();
+                        sB.append(sSDKPath);
+                        sB.append("/tools");
+                        
+                        //File tFile = new File(sB.toString());
+                        tFile = new File(sB.toString());
+                        if ( tFile.exists() )
+                            sTDir = "tools";
+                        else
+                            sTDir = sToolsDir;
+                    }
+                    else
+                        sTDir = sToolsDir;
 
 					if (iOS == LINUX_MAC)
 					{
 						sb.append("export PATH=${PATH}:");
 						sb.append(sSDKPath);
 						sb.append("/");
-						sb.append(sToolsDir);
+						//sb.append(sToolsDir);
+						sb.append(sTDir);
 						sb.append("/bin");
 
 						sb.append(";export JAVA_HOME=");
@@ -4114,7 +4272,8 @@ public class SDKManager
 						//sb.append("SET PATH=");
 						sb.append(sSDKPath);
 						sb.append("/");
-						sb.append(sToolsDir);
+						//sb.append(sToolsDir);
+						sb.append(sTDir);
 						sb.append("/bin");
 						//sb.append(";%PATH%");
 
@@ -4208,6 +4367,15 @@ public class SDKManager
 				boolean bUpdateSelected = false;
 				boolean bDoChannels = true;
 				boolean bDoUpdate = true;
+
+                // Note:
+                // In this case the 'tools' directory doesn't exist yet
+                // so we want to use 'cmdline-tools'..
+				
+                //if ( (sUseToolsBinDirectory != null) && (sUseToolsBinDirectory.equals("true")) )
+                    //sToolsDir = "tools";
+                    
+                //System.out.println("sToolsDir: '"+sToolsDir+"'");
 
 				sb = new StringBuffer();
 
