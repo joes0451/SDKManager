@@ -8,9 +8,10 @@ and the SDK that you want to manage.
 
 ** Note **
     In new versions of the SDK
-    cmdline-tools/bin/avdmanager list device
-    does not work, but now you can add the old
-    'tools' package and that version works.
+    'cmdline-tools/bin/avdmanager list device'
+    does not work, which will cause some AVD related operations to fail.
+    But now you can add the old 'tools' package and 
+    'tools/bin/avdmanager list device' works.
 
     Go into config.properties and set 'use_tools_bin_directory' to "true"
     and 'include_obsolete' to "true" to get it to include the old 'tools' package.
@@ -37,7 +38,7 @@ please follow these steps in order:
 Run SDK Manager.
 
 Select 'Manage SDK->Packages' and select the highest 'build-tools;..' level
-that you'd like to use, like 'build-tools;31.0.0', check "Accept licenses"
+that you'd like to use, like 'build-tools;32.0.0', check "Accept licenses"
 and hit Submit. This should set up the 'emulator' and 'tools' directories/packages.
 
 ** Note **
@@ -60,10 +61,13 @@ in order to get the old 'tools' package to appear in the list.
 Check "Accept licenses" and hit Submit.    
 
 Complete accepting licenses:
-Then select 'Manage SDK->Accept Licenses', check "Accept Licenses" and hit Submit.
+Select 'Manage SDK->Accept Licenses', check "Accept Licenses" and hit Submit.
 
 This will ensure that many essential things, like the 'emulator',
 'platforms' and 'tools' directories, are properly set up and all the licenses are accepted.
+
+Once you have things working you can add packages like 'cmdline-tools;8.0'
+and 'system-images;...'.
 
 The biggest potential issue that can happen is that your firewall
 can block the execution of the 'sdkmanager' and 'avdmanager' commands
@@ -122,17 +126,15 @@ prompt.
 
 
 
-SDK Manager 1.1.7:
-    Improved showing 'tools' package.
-    Improved getting packages for 'Manage SDK->Packages'.
-    Other improvements.
-    
 SDK Manager 1.1.8:
     Added option to use the tools/bin directory as the default as sometimes
     using cmdline-tools/bin might have issues.
 
 SDK Manager 1.1.9:
     New fixes that allow 'Manage AVDs->Create', and possibly more, to now work. 
+
+SDK Manager 1.2.0:
+    Option workaround for "Installed Build Tools revision 32.0.0 is corrupted" dx.bat issues.
 
     
 Please let me know of any issues so that

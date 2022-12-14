@@ -174,6 +174,7 @@ public class SDKManager
 	static volatile String sNoCachePartition;
 	static volatile String sWipeData;
 	static volatile String sUseToolsBinDirectory;
+	static volatile String sDoDxFix;
 
 	static volatile boolean bBreakOut;
 	static volatile boolean bIncludeObsolete;
@@ -187,6 +188,7 @@ public class SDKManager
 	static volatile boolean bAddTools;
 	static volatile boolean bGetPackagesFinished;
 	static volatile boolean bDontSetTools;
+	static volatile boolean bDxFixFinished;
 
 	static volatile int iOS;
 	static volatile int iFontSize;
@@ -245,6 +247,7 @@ public class SDKManager
 	private CreateThread createThread;
 	private AVDsThread aVDsThread;
 	private PackagesThread packagesThread;
+	private DxFixBgThread dxFixBgThread;
 
 	//}}}
 
@@ -629,6 +632,97 @@ public class SDKManager
 			//System.out.println("Exiting GetAVDsBgThread");
 		}
 	} //}}}
+
+	//{{{   DxFixBgThread
+	class DxFixBgThread extends Thread
+	{
+		public void run()
+		{
+			//System.out.println("\nDxFixBgThread run()");
+			
+            StringBuffer sB;
+            StringBuffer sB2;
+            StringBuffer sB3;
+            StringBuffer sB4;
+            StringBuffer sB5;
+            StringBuffer sB6;
+            File tFile;
+            File t2File;
+            File versionFile;
+            File batFile;
+            File renameFile;
+            File libFile;
+            String[] dirList;
+            boolean bRet = false;
+
+            sB = new StringBuffer();
+            sB.append(sSDKPath);
+            sB.append("/build-tools");
+            tFile = new File(sB.toString());
+            
+            if (tFile.exists())
+            {
+                dirList = tFile.list();
+                if ( (dirList != null) && (dirList.length > 0) )
+                {
+                    for ( int iZ = 0; iZ < dirList.length; iZ++ )
+                    {
+                        //System.out.println("--TOP-- iZ: "+iZ);
+                        //System.out.println("["+iZ+"]: '"+dirList[iZ]+"'");
+                        sB2 = new StringBuffer(sB.toString());
+                        sB2.append("/");
+                        sB2.append(dirList[iZ]);
+
+                        // Check for dx.bat..                        
+                        sB6 = new StringBuffer(sB2.toString());
+                        sB6.append("/dx.bat");
+                        t2File = new File(sB6.toString());
+                        if ( t2File.exists() )
+                            continue;
+                        
+                        //System.out.println("sB2: '"+sB2.toString()+"'");
+                        versionFile = new File(sB2.toString());
+                        if ( versionFile.exists() )
+                        {
+                            sB3 = new StringBuffer(sB2.toString());
+                            sB3.append("/");
+                            sB3.append("d8.bat");
+                            //System.out.println("sB3: '"+sB3.toString()+"'");
+                            batFile = new File(sB3.toString());
+                            if ( batFile.exists() )
+                            {
+                                sB4 = new StringBuffer(sB2.toString());
+                                sB4.append("/");
+                                sB4.append("dx.bat");
+                                //System.out.println("sB4: '"+sB4.toString()+"'");
+                                renameFile = new File(sB4.toString());
+                                
+                                // Rename..
+                                bRet = batFile.renameTo(renameFile);
+                            }
+                        }
+			
+                        sB5 = new StringBuffer(sB2.toString());
+                        sB5.append("/lib/d8.jar");
+                        //System.out.println("sB5: '"+sB5.toString()+"'");
+                        libFile = new File(sB5.toString());
+                        if ( libFile.exists() )
+                        {
+                            sB6 = new StringBuffer(sB2.toString());
+                            sB6.append("/lib/dx.jar");
+                            //System.out.println("sB6: '"+sB6.toString()+"'");
+                            renameFile = new File(sB6.toString());
+                            
+                            // Rename..
+                            bRet = libFile.renameTo(renameFile);
+                        }
+                    }   // End for..
+                }
+            }
+            
+            bDxFixFinished = true;
+		}
+	}    //}}}
 
 	//{{{   GetDevicesBgThread
 	@SuppressWarnings("unchecked")
@@ -2351,6 +2445,7 @@ public class SDKManager
 			sDisableVMAcceleration = processPath(prop.getProperty("disable_vm_acceleration"));
 			sNoCachePartition = processPath(prop.getProperty("no_cache_partition"));
 			sWipeData = processPath(prop.getProperty("wipe_data"));
+			sDoDxFix = processPath(prop.getProperty("do_dx_fix"));
 			
 		}
 		catch (IOException ioe)
@@ -4349,6 +4444,27 @@ public class SDKManager
 				
                 InstalledAr = new ArrayList();
                 PackageAr = new ArrayList();
+                
+                if ( (sDoDxFix != null) && (sDoDxFix.equals("true")) )
+                {
+                    bDxFixFinished = false;
+                    dxFixBgThread = new DxFixBgThread();
+                    dxFixBgThread.start();
+                    
+                    while ( true )
+                    {
+                        try
+                        {
+                            Thread.sleep(250);
+                        }
+                        catch (InterruptedException ie)
+                        {
+                        }
+                        
+                        if ( bDxFixFinished )
+                            break;
+                    }
+                }
                 
 				packagesThread = new PackagesThread();
 				packagesThread.start();
