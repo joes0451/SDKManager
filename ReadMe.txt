@@ -3,19 +3,15 @@ SDK Manager lets you manage the Android SDK that you would
 use 'sdkmanager' and 'avdmanager' to manage packages, create and
 launch AVDs.
 
+** Note **
+    In the later versions of the Android SDK the AVD commands 'avdmanager list' and 'avdmanager list device'
+    in cmdline-tools/bin have issues, so some AVD operations won't work.
+    But those commands in the old 'tools' package work.
+    In config.properties set 'include_obsolete' to "true", select 'Manage SDK->Packages' and select the
+    'tools' package.  Then set 'use_tools_bin_directory' to "true".
+
 Go into config.properties and fill in your paths to Java
 and the SDK that you want to manage.
-
-** Note **
-    In new versions of the SDK
-    'cmdline-tools/bin/avdmanager list device'
-    does not work, which will cause some AVD related operations to fail.
-    But now you can add the old 'tools' package and 
-    'tools/bin/avdmanager list device' works.
-
-    Go into config.properties and set 'use_tools_bin_directory' to "true"
-    and 'include_obsolete' to "true" to get it to include the old 'tools' package.
-    
 
 Setting up your Android SDK for the first time:
 
@@ -125,17 +121,16 @@ it will do an Enter for the default choice for the:
 prompt.
 
 
-
-SDK Manager 1.1.8:
-    Added option to use the tools/bin directory as the default as sometimes
-    using cmdline-tools/bin might have issues.
-
 SDK Manager 1.1.9:
     New fixes that allow 'Manage AVDs->Create', and possibly more, to now work. 
 
 SDK Manager 1.2.0:
     Option workaround for "Installed Build Tools revision 32.0.0 is corrupted" dx.bat issues.
-
+    
+SDK Manager 1.2.1:
+    Fixed 'avdmanager list device' not working issue.
+    This will make creating AVDs much more reliable.
+    
     
 Please let me know of any issues so that
 I can try to fix it.
