@@ -5,7 +5,7 @@
 /**
  *	  SDK Manager is a manager for the Android SDK
  *
- *	  Copyright (c) 2022 Joseph Siebenmann
+ *	  Copyright (c) 2024 Joseph Siebenmann
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General  Public License as published by
@@ -155,7 +155,7 @@ public class SDKManager
 	static volatile String sIncludeObsolete;
 	static volatile String sInternalCommand;
 	static volatile String sTest;
-	static volatile String sToolsDir;
+	static volatile String sBinPath;
 	static volatile String sShowCommandResults;
 	static volatile String sPackageChannel;
 	static volatile String sADV_BasedOn;
@@ -189,6 +189,9 @@ public class SDKManager
 	static volatile boolean bGetPackagesFinished;
 	static volatile boolean bDontSetTools;
 	static volatile boolean bDxFixFinished;
+	static volatile boolean bDevicesFinished;
+	static volatile boolean bSystemImagesFinished;
+	static volatile boolean bUseSDKRoot;
 
 	static volatile int iOS;
 	static volatile int iFontSize;
@@ -227,6 +230,7 @@ public class SDKManager
 	static final String AVDS_SUBMIT = "avds_submit";
 	static final String AVDS_CANCEL = "avds_cancel";
 	static final String ACCEPT_LICENSES = "Accept Licenses";
+	static final String REFRESH_PROPERTIES = "Refresh Properties";
 	static final String ACCEPT_LICENSES_SUBMIT = "accept_licenses_submit";
 	static final String ACCEPT_LICENSES_CANCEL = "accept_licenses_cancel";
 	static final String CREATE_SUBMIT = "create_submit";
@@ -248,6 +252,14 @@ public class SDKManager
 	private AVDsThread aVDsThread;
 	private PackagesThread packagesThread;
 	private DxFixBgThread dxFixBgThread;
+
+/*	
+	String[] devicesAr = {"tv_1080p", "tv_720p", "wear_round", "wear_round_chin_320_290", "wear_square", "Galaxy Nexus",
+	    "Nexus 10", "Nexus 4", "Nexus 5", "Nexus 5X", "Nexus 6", "Nexus 6P", "Nexus 7 2013", "Nexus 7", "Nexus 9",
+	    "Nexus One", "Nexus S", "pixel", "pixel_c", "pixel_xl", "2.7in QVGA", "2.7in QVGA slider", "3.2in HVGA slider (ADP1)",
+	    "3.2in QVGA (ADP2)", "3.3in WQVGA", "3.4in WQVGA", "3.7 FWVGA slider", "3.7in WVGA (Nexus One)", "4in WVGA (Nexus S)",
+	    "4.65in 720p (Galaxy Nexus)", "4.7in WXGA", "5.1in WVGA", "5.4in FWVGA", "7in WSVGA (Tablet)", "10.1in WXGA (Tablet)"}; 
+/**/
 
 	//}}}
 
@@ -282,84 +294,166 @@ public class SDKManager
 		sMemory = "";
 		bAVDSubmit = false;
 		bDontSetTools = false;
+		bUseSDKRoot = true;
 
 		createGui();
-
 		RefreshProperties();
-
-		// Check 'tools' directory..
-        // If 'cmdline-tools' is available use that..		
-		StringBuffer sB = new StringBuffer();
-		sB.append(sSDKPath);
-		sB.append("/cmdline-tools");
-		File tFile = new File(sB.toString());
-		String[] dirList;
-		String sLastDir = "";
-
-		// Handle 'cmdline-tools' sub-directories..	
-		if (tFile.exists())
-		{
-		    dirList = tFile.list();
-		    if ( (dirList != null) && (dirList.length > 0) )
-		    {
-                // Use version directory..
-                for ( int iZ = 0; iZ < dirList.length; iZ++ )
-                {
-                    //System.out.println("["+iZ+"]: '"+dirList[iZ]+"'");
-                    if ( dirList[iZ].equals("bin") || dirList[iZ].equals("lib") ||      // Ignore 'bin' and 'lib' directories
-                            dirList[iZ].equals("NOTICE.txt") || dirList[iZ].equals("source.properties") )
-                        continue;
-                        
-                    sLastDir = dirList[iZ];
-                }
-/*                
-                if ( sLastDir == null )
-                    System.out.println("sLastDir null");
-                else
-                    System.out.println("sLastDir: '"+sLastDir+"'");
-/**/                
-                // Like:  'latest'
-                if ( sLastDir.equals("") )
-                {
-                    sB = new StringBuffer();
-                    sB.append(sSDKPath);
-                    sB.append("/tools");
-                    tFile = new File(sB.toString());
-                    if ( tFile.exists() )
-                        sToolsDir = "tools";
-                }
-                else
-                {
-                    StringBuffer sB2 = new StringBuffer();
-                    sB2.append("cmdline-tools");
-                    sB2.append("/");
-                    
-                    
-                    sB2.append(sLastDir);
-                    
-                    sB2.append("/bin");
-                    
-                    sToolsDir = sB2.toString();     // Like:  'cmdline-tools/latest'
-                    //System.out.println("(2)sToolsDir set: '"+sToolsDir+"'");
-                }
-		    }
-		}
-		else
-		{
-			sB = new StringBuffer();
-			sB.append(sSDKPath);
-			sB.append("/tools");
-			tFile = new File(sB.toString());
-			if (tFile.exists())
-			{
-				sToolsDir = "tools";
-				//System.out.println("(3)sToolsDir set: '"+sToolsDir+"'");
-			}
-		}
+		GetBinPath();
 		
-		//System.out.println("sToolsDir: '"+sToolsDir+"'");		
 	} //}}}
 
+	//{{{    GetBinPath()
+	public void GetBinPath()
+	{
+		StringBuffer sB = new StringBuffer();
+		StringBuffer tSb;
+		int iLoc2 = 0;
+		File tFile;
+		File[] fileList;
+		String sLastDir = "";
+		String sNm = "";
+		String sT = "";
+		boolean bFoundBin = false;
+		boolean bFound;
+		
+		// Check for 'tools'..
+        if ( (sUseToolsBinDirectory != null) && (sUseToolsBinDirectory.equals("true")) )
+        {
+            // Use 'tools'..
+            sB = new StringBuffer();
+            sB.append(sSDKPath);
+            sB.append("/");
+            sB.append("tools");
+            
+            tFile = new File(sB.toString());
+            if ( tFile.exists() )
+                sBinPath = sB.toString();
+        }
+        else
+        {
+            bFound = false;
+            
+            // Check for 'bin'..
+            sB = new StringBuffer(); 
+            sB.append(sSDKPath);
+            sB.append("/");
+            sB.append("cmdline-tools");
+            sB.append("/");
+            sB.append("bin");
+            
+            tFile = new File(sB.toString());
+            if ( tFile.exists() )
+            {
+                // 'bin'..
+                bFound = true;
+                sT = sB.toString();
+                iLoc2 = sT.lastIndexOf("/");
+                if ( iLoc2 != -1 )
+                {
+                    sBinPath = sT.substring(0, iLoc2);
+                }
+            }
+            
+            if ( bFound == false )
+            {
+                // Check for 'latest/bin'..
+                sB = new StringBuffer(); 
+                sB.append(sSDKPath);
+                sB.append("/");
+                sB.append("cmdline-tools");
+                sB.append("/");
+                sB.append("latest");
+                sB.append("/");
+                sB.append("bin");
+                
+                tFile = new File(sB.toString());
+                if ( tFile.exists() )
+                {
+                    // 'latest/bin'..
+                    bFound = true;
+                    sT = sB.toString();
+                    iLoc2 = sT.lastIndexOf("/");
+                    if ( iLoc2 != -1 )
+                    {
+                        sBinPath = sT.substring(0, iLoc2);
+                    }
+                }
+            }
+            
+            if ( bFound == false )
+            {
+                // Check for like: '5.0'..
+                sB = new StringBuffer(); 
+                sB.append(sSDKPath);
+                sB.append("/");
+                sB.append("cmdline-tools");
+                
+                tFile = new File(sB.toString());
+                if ( tFile.exists() )
+                {
+                    double dT;
+                    double dPrev = 0.0;
+                    String sHighest = "";
+                    
+                    fileList = tFile.listFiles();
+                    if ( (fileList != null) && (fileList.length > 0) )
+                    {
+                        for ( int iZ = 0; iZ < fileList.length; iZ++ )
+                        {
+                            if ( fileList[iZ].isDirectory() )
+                            {
+                                sT = fileList[iZ].getName();
+                               
+                                dT = 0.0;
+                                try
+                                {
+                                    dT = Double.valueOf(sT);
+                                }
+                                catch (NumberFormatException nfe)
+                                {
+                                }
+                                
+                                if ( dT > dPrev )
+                                {
+                                    dPrev = dT;
+                                    sHighest = sT;
+                                }
+                            }
+                        }   // End for..
+                        
+                        if ( ! sHighest.equals("") )
+                        {
+                            sB.append("/");
+                            sB.append(sHighest);
+                            sB.append("/");
+                            sB.append("bin");
+                            tFile = new File(sB.toString());
+                            if ( tFile.exists() )
+                            {
+                                sT = sB.toString();
+                                iLoc2 = sT.lastIndexOf("/");
+                                if ( iLoc2 != -1 )
+                                {
+                                    sBinPath = sT.substring(0, iLoc2);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Set status bar..
+        tSb = new StringBuffer();
+        tSb.append(sBinPath);
+        tSb.append("/");
+        tSb.append("bin");
+        statusLabel.setText(tSb.toString());		
+
+		//System.out.println("(Final)sBinPath: '"+sBinPath+"'");
+	    
+	}    //}}}
+	
 	//{{{   GetAVDsBgThread
 	@SuppressWarnings("unchecked")
 	class GetAVDsBgThread extends Thread
@@ -388,30 +482,14 @@ public class SDKManager
 
 			sb = new StringBuffer();
 			
-			if ( (sUseToolsBinDirectory != null) && (sUseToolsBinDirectory.equals("true")) )
-			{
-			    sB = new StringBuffer();
-			    sB.append(sSDKPath);
-			    sB.append("/tools");
-			    
-			    File tFile = new File(sB.toString());
-			    if ( tFile.exists() )
-			        sTDir = "tools";
-			    else
-			        sTDir = sToolsDir;
-			}
-			else
-			    sTDir = sToolsDir;
-			    
-
 			if (iOS == LINUX_MAC)
 			{
 				sb.append("export PATH=${PATH}:");
-				sb.append(sSDKPath);
+				//sb.append(sSDKPath);
+				//sb.append("/");
+				sb.append(sBinPath);
 				sb.append("/");
-				//sb.append(sToolsDir);
-				sb.append(sTDir);
-				sb.append("/bin");
+				sb.append("bin");
 
 				sb.append(";export JAVA_HOME=");
 				sb.append(sJavaPath);
@@ -429,11 +507,11 @@ public class SDKManager
 			{
 				sb.append("cd ");
 				//sb.append("SET PATH=");
-				sb.append(sSDKPath); // Like: "C:/android-sdk-wind"
+				//sb.append(sSDKPath); // Like: "C:/android-sdk-wind"
+				//sb.append("/");
+				sb.append(sBinPath);
 				sb.append("/");
-				//sb.append(sToolsDir);
-				sb.append(sTDir);
-				sb.append("/bin");
+				sb.append("bin");
 				//sb.append(";%PATH%");
 
 				sb.append("&&SET JAVA_HOME=");
@@ -450,7 +528,7 @@ public class SDKManager
 				sb.append("\n");
 			}
 
-			//System.out.println("sb: '"+sb.toString()+"'");
+			//System.out.println("(Command)sb: '"+sb.toString()+"'");
 			bCommandFinished = false;
 			//commandRequestLatch = new CountDownLatch(1);
 			sInternalCommand = sb.toString();
@@ -474,16 +552,6 @@ public class SDKManager
 			}
 
 			//System.out.println("GetAVDsBgThread Dropped out");
-/*                
-            // Wait for Thread to finish..
-            try
-            {
-                commandRequestLatch.await();
-            }
-            catch (InterruptedException ie)
-            {
-            }
-/**/
 
 /*
             if ( commandResultS == null )
@@ -533,8 +601,6 @@ public class SDKManager
 						if ( (iLoc2 + 16) < commandResultS.length() )
 						{
                             iLoc4 = commandResultS.indexOf("Device:", iLoc2 + 16);    // Virtual Devices:
-                            //if (( iLoc4 < iLoc3 ) && (iLoc4 != -1))
-                            //if (( (iLoc3 != -1) && (iLoc4 < iLoc3) ) && (iLoc4 != -1))
                             if ( iLoc4 != -1 )
                             {
                                 iLoc4 += 8;
@@ -625,8 +691,8 @@ public class SDKManager
 				}
 			}
 
-			if (operationRequestLatch != null)
-				operationRequestLatch.countDown();
+			//if (operationRequestLatch != null)
+				//operationRequestLatch.countDown();
 
 			bGetAVDFinished = true;
 			//System.out.println("Exiting GetAVDsBgThread");
@@ -657,7 +723,8 @@ public class SDKManager
 
             sB = new StringBuffer();
             sB.append(sSDKPath);
-            sB.append("/build-tools");
+            sB.append("/");
+            sB.append("build-tools");
             tFile = new File(sB.toString());
             
             if (tFile.exists())
@@ -675,7 +742,8 @@ public class SDKManager
 
                         // Check for dx.bat..                        
                         sB6 = new StringBuffer(sB2.toString());
-                        sB6.append("/dx.bat");
+                        sB6.append("/");
+                        sB6.append("dx.bat");
                         t2File = new File(sB6.toString());
                         if ( t2File.exists() )
                             continue;
@@ -703,13 +771,15 @@ public class SDKManager
                         }
 			
                         sB5 = new StringBuffer(sB2.toString());
-                        sB5.append("/lib/d8.jar");
+                        sB5.append("/");
+                        sB5.append("lib/d8.jar");
                         //System.out.println("sB5: '"+sB5.toString()+"'");
                         libFile = new File(sB5.toString());
                         if ( libFile.exists() )
                         {
                             sB6 = new StringBuffer(sB2.toString());
-                            sB6.append("/lib/dx.jar");
+                            sB6.append("/");
+                            sB6.append("lib/dx.jar");
                             //System.out.println("sB6: '"+sB6.toString()+"'");
                             renameFile = new File(sB6.toString());
                             
@@ -731,6 +801,7 @@ public class SDKManager
 		public void run()
 		{
 			//System.out.println("\nGetDevicesBgThread run()");
+			
 			StringBuffer sb = new StringBuffer();
 			StringBuffer sB;
 			String sT = "";
@@ -738,34 +809,21 @@ public class SDKManager
 			int iLoc2 = 0;
 			int iLoc3 = 0;
 			int iLoc4 = 0;
+			int iLoc5 = 0;
+			int iLoc6 = 0;
 
 			sb = new StringBuffer();
 
-			if ( (sUseToolsBinDirectory != null) && (sUseToolsBinDirectory.equals("true")) )
-			{
-			    sB = new StringBuffer();
-			    sB.append(sSDKPath);
-			    sB.append("/tools");
-			    
-			    File tFile = new File(sB.toString());
-			    if ( tFile.exists() )
-			        sTDir = "tools";
-			    else
-			        sTDir = sToolsDir;
-			}
-			else
-			    sTDir = sToolsDir;
-			
-			//System.out.println("sToolsDir: '"+sToolsDir+"'");
+			//System.out.println("sBinPath: '"+sBinPath+"'");
 			
 			if (iOS == LINUX_MAC)
 			{
 				sb.append("export PATH=${PATH}:");
-				sb.append(sSDKPath);
+				//sb.append(sSDKPath);
+				//sb.append("/");
+				sb.append(sBinPath);
 				sb.append("/");
-				//sb.append(sToolsDir);
-				sb.append(sTDir);
-				sb.append("/bin");
+				sb.append("bin");
 
 				sb.append(";export JAVA_HOME=");
 				sb.append(sJavaPath);
@@ -783,11 +841,11 @@ public class SDKManager
 			{
 				sb.append("cd ");
 				//sb.append("SET PATH=");
-				sb.append(sSDKPath);
+				//sb.append(sSDKPath);
+				//sb.append("/");
+				sb.append(sBinPath);
 				sb.append("/");
-				//sb.append(sToolsDir);
-				sb.append(sTDir);
-				sb.append("/bin");
+				sb.append("bin");
 				//sb.append(";%PATH%");
 
 				sb.append("&&SET JAVA_HOME=");
@@ -807,60 +865,94 @@ public class SDKManager
 			
 			//System.out.println("sb: '"+sb.toString()+"'");
 
-			commandRequestLatch = new CountDownLatch(1);
+			bCommandFinished = false;
 			sInternalCommand = sb.toString();
 			commandBgThread = new CommandBgThread();
 			commandBgThread.start();
 
+			// Seems to need some more time..	
 			// Wait for Thread to finish..
-			try
+			while ( true )
 			{
-				commandRequestLatch.await();
-			}
-			catch (InterruptedException ie)
-			{}
+				try
+				{
+					Thread.sleep(500);
+				}
+				catch (InterruptedException ie)
+				{
+				}
 
-/*		
-            if ( commandResultS == null )
-                System.out.println("commandResultS null");
-            else
-                System.out.println("commandResultS: '"+commandResultS+"'");
-/**/
+				if ( bCommandFinished )
+					break;
+			}
+			
+            //if ( commandResultS == null )
+                //System.out.println("commandResultS null");
+            //else
+                //System.out.println("commandResultS: '"+commandResultS+"'");
 
 			if ((commandResultS != null) && (commandResultS.length() > 0))
 			{
 				// Get to start..
 				DevicesAr = new ArrayList();
+				DeviceInfo deviceInfo;
+				
 				iLoc2 = 0;
 
 				while (true)
 				{
+				    // Next device..
 					iLoc2 = commandResultS.indexOf("id:", iLoc2);
 					if (iLoc2 != -1)
 					{
-						iLoc3 = commandResultS.indexOf((int) 0x22, iLoc2);
+						iLoc3 = commandResultS.indexOf("or", iLoc2);
 						if (iLoc3 != -1)
 						{
-							iLoc4 = commandResultS.indexOf((int) 0x22, iLoc3 + 1);
-							if (iLoc4 != -1)
-							{
-								sT = commandResultS.substring(iLoc3 + 1, iLoc4);
+                            // Get Name..
+                            iLoc5 = commandResultS.indexOf("Name:", iLoc2);
+                            if ( iLoc5 != -1 )
+                            {
+                                deviceInfo = new DeviceInfo();
+                                
+								sT = commandResultS.substring(iLoc3 + 2, iLoc5);
 								sT = sT.trim();
-								//System.out.println("(Add): '"+sT+"'");
-								DevicesAr.add((String) sT);
-							}
+								//System.out.println("(sIdName): '"+sT+"'");
+								deviceInfo.sIdName = sT;    // Includes double quotes
+                                
+                                iLoc6 = commandResultS.indexOf("OEM", iLoc5);
+                                if ( iLoc6 != -1 )
+                                {
+                                    sT = commandResultS.substring(iLoc5 + 5, iLoc6);
+                                    sT = sT.trim();
+                                    //System.out.println("(sName): '"+sT+"'");
+                                    deviceInfo.sName = sT;
+                                    
+                                    DevicesAr.add((DeviceInfo)deviceInfo);
+                                }
+                            }
 						}
 					}
 					else
 						break;
 
-					iLoc2 += 3; // Next..
+					iLoc2 += 4; // Next..
 				} // End while..              
+			}
+/**/
+
+/*
+			DevicesAr = new ArrayList();
+			
+			for ( int iZ = 0; iZ < devicesAr.length; iZ++ )
+			{
+			    DevicesAr.add((String) devicesAr[iZ]);
 			}
 
 			if (operationRequestLatch != null)
 				operationRequestLatch.countDown();
-
+/**/
+            bDevicesFinished = true;
+            
 		}
 	} //}}}
 
@@ -897,16 +989,6 @@ public class SDKManager
 					break;
 			}
 
-/*            
-            // Wait for Thread to finish..
-            try
-            {
-                operationRequestLatch.await();
-            }
-            catch (InterruptedException ie)
-            {
-            }
-/**/
 
 /*
             if ( AVDsAr == null )
@@ -1006,15 +1088,6 @@ public class SDKManager
 					break;
 			}
 
-/*			
-			// Wait for Thread to finish..
-			try
-			{
-				operationRequestLatch.await();
-			}
-			catch (InterruptedException ie)
-			{}
-/**/
 
 			bHideOutput = false;
 /*			
@@ -1050,31 +1123,49 @@ public class SDKManager
 			RefreshProperties();
 
 			bHideOutput = true;
-			operationRequestLatch = new CountDownLatch(1);
+			//operationRequestLatch = new CountDownLatch(1);
+			bSystemImagesFinished = false;
 			getSystemImagesBgThread = new GetSystemImagesBgThread();
 			getSystemImagesBgThread.start();
 
 			// Wait for Thread to finish..
-			try
-			{
-				operationRequestLatch.await();
-			}
-			catch (InterruptedException ie)
-			{}
-
+            while ( true )
+            {
+                try
+                {
+                    Thread.sleep(333);
+                }
+                catch (InterruptedException ie)
+                {
+                }
+                
+                if ( bSystemImagesFinished )
+                    break;
+            }
+			
 			bHideOutput = true;
-			operationRequestLatch = new CountDownLatch(1);
+			bDevicesFinished = false;
+			//operationRequestLatch = new CountDownLatch(1);
 			getDevicesBgThread = new GetDevicesBgThread();
 			getDevicesBgThread.start();
 
 			// Wait for Thread to finish..
-			try
-			{
-				operationRequestLatch.await();
-			}
-			catch (InterruptedException ie)
-			{}
-
+            while ( true )
+            {
+                try
+                {
+                    Thread.sleep(333);
+                }
+                catch (InterruptedException ie)
+                {
+                }
+                
+                if ( bDevicesFinished )
+                    break;
+            }
+            
+            //GetDevices();
+			
 			bHideOutput = false;
 			createAVD();
 		}
@@ -1097,6 +1188,8 @@ public class SDKManager
 			String sUpdateVersion = "";
 			String sEmulatorEntry = "";
 			String sToolsEntry = "";
+			String sPreviousVersion = "";
+			String sPreviousPackage = "";
 			StringBuffer sB;
 			boolean bFoundUpdates = false;
 			boolean bFoundUpdate;
@@ -1128,147 +1221,20 @@ public class SDKManager
 			int iTotal = 0;
 			int iPrevTotal = 0;
 			int iM = 0;
-			int iPkgLen = 0;
+			//int iPkgLen = 0;
 			iPrevLength = 0;
 			byte[] bOutAr = null;
 			byte[] bAr = {(byte) 0x0a, (byte) 0x20, (byte) 0x20};
 			String sStart = new String(bAr);
 
-			RefreshProperties();			
+			RefreshProperties();
 			
-            // Check 'tools' directory..
-            // If 'cmdline-tools' is available use that..		
-            sB = new StringBuffer();
-/*            
-            if ( sSDKPath == null )
-                System.out.println("sSDKPath null");
-            else
-                System.out.println("sSDKPath: '"+sSDKPath+"'");
-/**/                    
-            sB.append(sSDKPath);
-            sB.append("/cmdline-tools");
-            File tFile = new File(sB.toString());
-            File tFile2;
-            String[] dirList;
-            String sLastDir = "";
-            StringBuffer sTb;
-            byte[] buf;
-            
-            InstalledAr = new ArrayList();
-    
-            // Handle 'cmdline-tools' sub-directories..	
-            if (tFile.exists())
-            {
-                dirList = tFile.list();
-                if ( (dirList != null) && (dirList.length > 0) )
-                {
-                    // Use version directory..
-                    for ( int iZ = 0; iZ < dirList.length; iZ++ )
-                    {
-                        //System.out.println("["+iZ+"]: '"+dirList[iZ]+"'");
-                        if ( dirList[iZ].equals("bin") || dirList[iZ].equals("lib") ||      // Ignore 'bin' and 'lib' directories
-                                dirList[iZ].equals("NOTICE.txt") || dirList[iZ].equals("source.properties") )
-                            continue;
-
-                        if ( dirList[iZ].equals("latest") )
-                        {
-                            if ( InstalledAr != null )
-                                InstalledAr.add((String)"cmdline-tools;latest");
-                        }
-                        else
-                        {
-                            sTb = new StringBuffer();
-                            sTb.append(sB.toString());
-                            sTb.append("/");
-                            sTb.append(dirList[iZ]);
-                            sTb.append("/source.properties");
-                            // Like:  'C:/android-sdk-Z/cmdline-tools/4.0/source.properties'
-                            //System.out.println("sTb: '"+sTb.toString()+"'");
-                            
-                            tFile2 = new File(sTb.toString());
-                            if ( tFile2.exists() )
-                            {
-                                buf = readFile(1024, sTb.toString());
-                                if ( (buf != null) && (buf.length > 0) )
-                                {
-                                    sT = new String(buf);
-                                    //System.out.println("sT: '"+sT+"'");
-                                    iLoc2 = sT.indexOf("Pkg.Path");
-                                    if ( iLoc2 != -1 )
-                                    {
-                                        iLoc3 = sT.indexOf((int)0x0a, iLoc2);
-                                        if ( iLoc3 != -1 )
-                                        {
-                                            sT2 = sT.substring(iLoc2 + 9, iLoc3);
-                                            sT2 = sT2.trim();
-                                            if ( InstalledAr != null )
-                                            {
-                                                //System.out.println("((C)Add)sInstalled: '"+sT2+"'");
-                                                InstalledAr.add((String)sT2);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                           
-                        sLastDir = dirList[iZ];
-                        
-                    }   // End for..
-/*    
-                    if ( sLastDir == null )
-                        System.out.println("sLastDir null");
-                    else
-                        System.out.println("sLastDir: '"+sLastDir+"'");
-/**/ 
-
-                    // Note:
-                    // It adds '/bin' last..
-                    // Figure out bin path for tools / cmdline-tools..
-                    
-                    if ( sLastDir.equals("") )
-                    {
-                        // No other directories..
-                        sToolsDir = "cmdline-tools";
-                        //System.out.println("(1)sToolsDir set: '"+sToolsDir+"'");
-                    }
-                    else
-                    {
-                        StringBuffer sB2 = new StringBuffer();
-                        sB2.append("cmdline-tools");
-                        sB2.append("/");
-                        sB2.append(sLastDir);   // Like 'latest' or '3.0'..
-                        
-                        sToolsDir = sB2.toString();     // Like:  'cmdline-tools/latest'
-                        //System.out.println("(2)sToolsDir set: '"+sToolsDir+"'");
-                    }
-                }
-            }
-            else
-            {
-                // No 'comdline-tools'..
-                sB = new StringBuffer();
-                sB.append(sSDKPath);
-                sB.append("/tools");
-                tFile = new File(sB.toString());
-                if (tFile.exists())
-                {
-                    sToolsDir = "tools";
-                    //System.out.println("(3)sToolsDir set: '"+sToolsDir+"'");
-                }
-            }
- 
-            // Note:
-            // In this case the 'tools' directory doesn't exist yet
-            // so we want to use 'cmdline-tools'..
-			//if ( (sUseToolsBinDirectory != null) && (sUseToolsBinDirectory.equals("true")) )
-			    //sToolsDir = "tools";
 
 /*			    
-            if ( sToolsDir == null )
-                System.out.println("sToolsDir null");
+            if ( sBinPath == null )
+                System.out.println("sBinPath null");
             else
-                System.out.println("sToolsDir: '"+sToolsDir+"'");
+                System.out.println("sBinPath: '"+sBinPath+"'");
 /**/			
 			
 			
@@ -1277,10 +1243,11 @@ public class SDKManager
 			if (iOS == LINUX_MAC)
 			{
 				sb.append("export PATH=${PATH}:");
-				sb.append(sSDKPath);
+				//sb.append(sSDKPath);
+				//sb.append("/");
+				sb.append(sBinPath);
 				sb.append("/");
-				sb.append(sToolsDir);
-				sb.append("/bin");
+				sb.append("bin");
 
 				sb.append(";export JAVA_HOME=");
 				sb.append(sJavaPath);
@@ -1293,14 +1260,11 @@ public class SDKManager
 
 				sb.append(";sdkmanager --list ");
 
-                // We always include Obsolete to make managing
-                // things easier..
-                sb.append("--include_obsolete ");
+                if ( (sIncludeObsolete != null) && (sIncludeObsolete.equals("true")) )
+                    sb.append("--include_obsolete ");
 
 				if ( (sUseHTTPS != null) && (sUseHTTPS.equals("false")) )
-				{
 					sb.append("--no_https ");
-				}
 
 				if ( (sPackageChannel != null) && (sPackageChannel.length() > 0) )
 				{
@@ -1315,8 +1279,11 @@ public class SDKManager
                         sb.append("--channel=3 ");
                 }
 
-				sb.append("--sdk_root=");
-				sb.append(sSDKPath);
+                if ( bUseSDKRoot )
+                {
+                    sb.append("--sdk_root=");
+                    sb.append(sSDKPath);
+                }
 
 			}
 			else
@@ -1324,12 +1291,13 @@ public class SDKManager
 				sb.append("cd ");
 				//sb.append("SET PATH=");
 				//System.out.println("sSDKPath: '"+sSDKPath+"'");
-				//System.out.println("sToolsDir: '"+sToolsDir+"'");
+				//System.out.println("sBinPath: '"+sBinPath+"'");
 				
-				sb.append(sSDKPath);
+				//sb.append(sSDKPath);
+				//sb.append("/");
+				sb.append(sBinPath);
 				sb.append("/");
-				sb.append(sToolsDir);
-				sb.append("/bin");
+				sb.append("bin");
 				//sb.append(";%PATH%");
 				
 				sb.append("&&SET JAVA_HOME=");
@@ -1343,9 +1311,8 @@ public class SDKManager
 
 				sb.append("&&sdkmanager --list ");
 
-                // We always include Obsolete to make managing
-                // things easier..
-                sb.append("--include_obsolete ");
+                if ( (sIncludeObsolete != null) && (sIncludeObsolete.equals("true")) )
+                    sb.append("--include_obsolete ");
 
 				if ( (sUseHTTPS != null) && (sUseHTTPS.equals("false")) )
 				{
@@ -1365,8 +1332,11 @@ public class SDKManager
                         sb.append("--channel=3 ");
                 }
 
-				sb.append("--sdk_root=");
-				sb.append(sSDKPath);
+                if ( bUseSDKRoot )
+                {
+                    sb.append("--sdk_root=");
+                    sb.append(sSDKPath);
+                }
 
 				sb.append("\n");
 			}
@@ -1387,23 +1357,14 @@ public class SDKManager
 					Thread.sleep(750);
 				}
 				catch (InterruptedException ie)
-				{}
+				{
+				}
 
-				if (bCommandFinished)
+				if ( bCommandFinished )
 					break;
 			}
 			
 
-/*
-            // Wait for Thread to finish..
-            try
-            {
-                commandRequestLatch.await();
-            }
-            catch (InterruptedException ie)
-            {
-            }
-/**/
 
 /*
             if ( commandResultS == null )
@@ -1428,8 +1389,8 @@ public class SDKManager
                 if ( iLocAvailablePackages == -1 )
                 {
                     // Error..
-                    if (operationRequestLatch != null)
-                        operationRequestLatch.countDown();
+                    //if (operationRequestLatch != null)
+                        //operationRequestLatch.countDown();
                     
                     return;
                 }
@@ -1769,7 +1730,11 @@ public class SDKManager
 					{
 						iLoc7 = iLoc8;
 						iStart = iLoc7;
-						while (true)
+						sPreviousPackage = "";
+						sPreviousVersion = "";
+						
+						
+						while ( true )
 						{
 						    //System.out.println("--TOP--");
 						    if ( (iLocAvailableObsolete != -1) && (iLoc7 >= iLocAvailableObsolete) )
@@ -1819,7 +1784,55 @@ public class SDKManager
                             sB = new StringBuffer();
                             sB.append(sPackage);
                             //System.out.println("\nsPackage.length(): "+sPackage.length());
-                            
+
+                            if ( sPreviousPackage.equals("") )
+                            {
+                                // Skip..
+                                sPreviousPackage = sPackage;
+                                sPreviousVersion = sVersion;
+                            }
+                            else
+                            {
+                                // Figure out Version spacing..
+                                
+                                iCol = 0;
+                                //int iLenDif = 0;
+                                
+                                while ( true )
+                                {
+                                    //System.out.println("(D)--TOP--");
+                                    //System.out.println("iPrevLength: "+iPrevLength);
+                                    //System.out.println("sPackage.length(): '"+sPackage.length()+"'");
+    
+                                    if ( iCol > sPackage.length() )
+                                    {
+                                        if ( (sPackage.length() + 3) > iCol )
+                                            ;
+                                        else
+                                        {
+                                            for ( int iX = 0; iX < (iCol - sPackage.length()); iX++ )
+                                                //sB.append(SPACING);     // " "
+                                                sB.append(" ");
+                                            
+                                            iPrevLength = sPackage.length() + (iCol - sPackage.length());
+                                            //iPkgLen = sPackage.length();
+                                            
+                                            break;
+                                        }
+                                    }
+                                    
+                                    iCol += 8;
+                                        
+                                }   // End while..
+                                
+                                sB.append(sVersion);
+                                
+                                //System.out.println("((A)PackageAr.add()): '"+sB.toString()+"'");
+                                PackageAr.add((String)sB.toString());
+                            }
+
+
+/*                            
                             iCol = 0;
                             int iLenDif = 0;
                             while ( true )
@@ -1849,10 +1862,11 @@ public class SDKManager
                             }   // End while..
                             
                             sB.append(sVersion);
-
+                            
                             //System.out.println("((A)PackageAr.add()): '"+sB.toString()+"'");
                             PackageAr.add((String)sB.toString());
-                            
+/**/
+
 							// Next..
 							iLoc7 = commandResultS.indexOf(sStart, iLoc7); // 0x0a 0x20 0x20
 							if ( iLoc7 == -1 )
@@ -1861,7 +1875,11 @@ public class SDKManager
 							for ( ; Character.isWhitespace(commandResultS.charAt(iLoc7)); iLoc7++ );
 
 							if ( iLoc7 >= iLocAvailableUpdates ) // 'Available Updates:'
+							{
+							    // Done, resolve..
+							    
 								break;
+							}
 
 							iStart = iLoc7;
 						}    // End while..
@@ -1921,7 +1939,7 @@ public class SDKManager
                         //System.out.println("\nsAvblObs.length(): "+sAvblObs.length());
                         
                         iCol = 0;
-                        int iLenDif = 0;
+                        //int iLenDif = 0;
                         
                         while ( true )
                         {
@@ -1939,7 +1957,7 @@ public class SDKManager
                                         sB.append(SPACING);
                                     
                                     iPrevLength = sAvblObs.length() + (iCol - sAvblObs.length());
-                                    iPkgLen = sAvblObs.length();
+                                    //iPkgLen = sAvblObs.length();
                                     
                                     break;
                                 }
@@ -2263,31 +2281,16 @@ public class SDKManager
 			int iLoc6 = 0;
 			int iStart = 0;
 
-			if ( (sUseToolsBinDirectory != null) && (sUseToolsBinDirectory.equals("true")) )
-			{
-			    sB = new StringBuffer();
-			    sB.append(sSDKPath);
-			    sB.append("/tools");
-			    
-			    File tFile = new File(sB.toString());
-			    if ( tFile.exists() )
-			        sTDir = "tools";
-			    else
-			        sTDir = sToolsDir;
-			}
-			else
-			    sTDir = sToolsDir;
-
 			sb = new StringBuffer();
 
 			if (iOS == LINUX_MAC)
 			{
 				sb.append("export PATH=${PATH}:");
-				sb.append(sSDKPath);
+				//sb.append(sSDKPath);
+				//sb.append("/");
+				sb.append(sBinPath);
 				sb.append("/");
-				//sb.append(sToolsDir);
-				sb.append(sTDir);
-				sb.append("/bin");
+				sb.append("bin");
 
 				sb.append(";export JAVA_HOME=");
 				sb.append(sJavaPath);
@@ -2305,18 +2308,21 @@ public class SDKManager
 					sb.append("--no_https ");
 				}
 
-				sb.append("--sdk_root=");
-				sb.append(sSDKPath);
+                if ( bUseSDKRoot )
+                {
+                    sb.append("--sdk_root=");
+                    sb.append(sSDKPath);
+                }
 			}
 			else
 			{
 				sb.append("cd ");
 				//sb.append("SET PATH=");
-				sb.append(sSDKPath);
+				//sb.append(sSDKPath);
+				//sb.append("/");
+				sb.append(sBinPath);
 				sb.append("/");
-				//sb.append(sToolsDir);
-				sb.append(sTDir);
-				sb.append("/bin");
+				sb.append("bin");
 				//sb.append(";%PATH%");
 
 				sb.append("&&SET JAVA_HOME=");
@@ -2335,23 +2341,36 @@ public class SDKManager
 					sb.append("--no_https ");
 				}
 
-				sb.append("--sdk_root=");
-				sb.append(sSDKPath);
+                if ( bUseSDKRoot )
+                {
+                    sb.append("--sdk_root=");
+                    sb.append(sSDKPath);
+                }
+				
+				
 				sb.append("\n");
 			}
 
-			commandRequestLatch = new CountDownLatch(1);
+			//commandRequestLatch = new CountDownLatch(1);
+			bCommandFinished = false;
 			sInternalCommand = sb.toString();
 			commandBgThread = new CommandBgThread();
 			commandBgThread.start();
 
 			// Wait for Thread to finish..
-			try
+			while ( true )
 			{
-				commandRequestLatch.await();
+				try
+				{
+					Thread.sleep(333);
+				}
+				catch (InterruptedException ie)
+				{
+				}
+
+				if ( bCommandFinished )
+					break;
 			}
-			catch (InterruptedException ie)
-			{}
 
 /*			
             if ( commandResultS == null )
@@ -2394,9 +2413,10 @@ public class SDKManager
 				} // End while..              
 			}
 
-			if (operationRequestLatch != null)
-				operationRequestLatch.countDown();
+			//if (operationRequestLatch != null)
+				//operationRequestLatch.countDown();
 
+			bSystemImagesFinished = true;
 		}
 	} //}}}
 
@@ -2422,7 +2442,8 @@ public class SDKManager
 			// Check if 'tools' directory exists..
             StringBuffer sB = new StringBuffer();
             sB.append(sSDKPath);
-            sB.append("/tools");
+            sB.append("/");
+            sB.append("tools");
             File tFile = new File(sB.toString());
             if ( tFile.exists() )
                 sUseToolsBinDirectory = processPath(prop.getProperty("use_tools_bin_directory"));
@@ -2453,11 +2474,6 @@ public class SDKManager
 			System.out.println("RefreshProperties() Exception");
 			ioe.printStackTrace();
 		}
-
-		StringBuffer sB = new StringBuffer();
-		sB.append(SPACING);
-		sB.append(sSDKPath);
-		statusLabel.setText(sB.toString());
 
 	} //}}}
 
@@ -2589,6 +2605,8 @@ public class SDKManager
 		packagesMenuItem.addActionListener(actListener);
 		JMenuItem licensesMenuItem = new JMenuItem("Accept Licenses");
 		licensesMenuItem.addActionListener(actListener);
+		JMenuItem refreshMenuItem = new JMenuItem("Refresh Properties");
+		refreshMenuItem.addActionListener(actListener);
 
 		JMenu avdMenu = new JMenu("Manage AVDs");
 		JMenuItem createMenuItem = new JMenuItem("Create");
@@ -2598,6 +2616,7 @@ public class SDKManager
 
 		sdkMenu.add(packagesMenuItem);
 		sdkMenu.add(licensesMenuItem);
+		sdkMenu.add(refreshMenuItem);
 		menuBar.add(sdkMenu);
 
 		avdMenu.add(createMenuItem);
@@ -2668,7 +2687,7 @@ public class SDKManager
 	{
 		public void run()
 		{
-			//System.out.println("\n\n== InteractiveCommand run() ==");
+			//System.out.println("== InteractiveCommand run() ==");
 			//System.out.println("sInternalCommand: '"+sInternalCommand+"'");
 			ProcessBuilder processBuilder;
 			Process process = null;
@@ -2777,8 +2796,8 @@ public class SDKManager
 
 						sBOut.append(sT);
 
-						
-/*						
+/*
+                        // Debug						
                         System.out.println("\n\n");
                         char cTChr;
 
@@ -2904,6 +2923,7 @@ public class SDKManager
                         {}
                     }
 				} // End while..
+				
 				//System.out.println("Dropped out");
 			}
 			catch (IOException ioe)
@@ -2931,6 +2951,14 @@ public class SDKManager
 			process.destroy();
 
 			commandResultS = sBOut.toString();
+
+/*			
+			if ( commandResultS == null )
+			    System.out.println("commandResultS null");
+			else
+			    System.out.println("commandResultS: "+commandResultS);
+/**/			
+			    
 
 			if ( interactiveRequestLatch != null )
 				interactiveRequestLatch.countDown();
@@ -3128,8 +3156,8 @@ public class SDKManager
 			
 			//System.out.println("Exiting CommandBgThread run()");
 
-			if (commandRequestLatch != null)
-				commandRequestLatch.countDown();
+			//if (commandRequestLatch != null)
+				//commandRequestLatch.countDown();
 
 		}
 	} //}}}
@@ -3334,12 +3362,7 @@ public class SDKManager
 		packageJList = new JList(tSa);
 		//packageJList.setFont(new Font("Monospaced", Font.BOLD, 13));
 		packageJList.setFont(new Font("Monospaced", Font.BOLD, 12));
-		//packageJList.setFont(new Font("Dialog", Font.BOLD, 12));
-		//packageJList.setFont(new Font("DialogInput", Font.BOLD, 12));
-		//packageJList.setFont(new Font("SansSerif", Font.BOLD, 12));
-		//packageJList.setFont(new Font("Serif", Font.BOLD, 12));
 		packageJList.setCellRenderer(new ColorCellRenderer());
-		//packageJList.setVisibleRowCount(8);
 		packageJList.setVisibleRowCount(10);
 		packageJList.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
 		packageScrollPane.getViewport().setView(packageJList);
@@ -3455,7 +3478,7 @@ public class SDKManager
 
 	} //}}}
 
-	//{{{   createAVD()
+	//{{{   createAVD()    AVDDialog
 	@SuppressWarnings("unchecked")
 	public void createAVD()
 	{
@@ -3528,8 +3551,20 @@ public class SDKManager
 
 		iSz = DevicesAr.size();
 		tSa = new String[iSz];
-		for ( int iJ = 0; iJ < DevicesAr.size(); iJ++ )
-			tSa[iJ] = (String)DevicesAr.get(iJ);
+		
+		if ( (DevicesAr != null) && (DevicesAr.size() > 0) )
+		{
+		    DeviceInfo dInfo;
+            for ( int iJ = 0; iJ < DevicesAr.size(); iJ++ )
+            {
+                dInfo = (DeviceInfo)DevicesAr.get(iJ);
+                if ( dInfo != null )
+                {
+                    //tSa[iJ] = (String)DevicesAr.get(iJ);
+                    tSa[iJ] = dInfo.sName;
+                }
+            }
+        }
 
 		devicesJList = new JList(tSa);
 		devicesJList.setFont(new Font("Monospaced", Font.BOLD, 12));
@@ -3587,66 +3622,7 @@ public class SDKManager
 			sActionCommand = e.getActionCommand();
 			String sT = "";
 			//System.out.println("sActionCommand: '"+sActionCommand+"'");
-			
-			// Refresh 'tools' directory..		
-			StringBuffer sB = new StringBuffer();
-            String[] dirList;
-            String sLastDir = "";
-			
-			sB.append(sSDKPath);
-			sB.append("/cmdline-tools");
-			File tFile = new File(sB.toString());
-			if ( tFile.exists() )
-			{
-			    // 'latest' is the highest numbered cmdline-tools version..
-			    // We only want to show numbered versions..
-                dirList = tFile.list();
-                if ( (dirList != null) && (dirList.length > 0) )
-                {
-                    // Use version directory..
-                    for ( int iZ = 0; iZ < dirList.length; iZ++ )
-                    {
-                        //System.out.println("["+iZ+"]: '"+dirList[iZ]+"'");
-                        if ( dirList[iZ].equals("bin") || dirList[iZ].equals("lib") ||
-                                dirList[iZ].equals("NOTICE.txt") || dirList[iZ].equals("source.properties") ||
-                                dirList[iZ].equals("latest") )
-                            continue;
-                            
-                        sLastDir = dirList[iZ];
-                    }
-                    
-                    //System.out.println("sLastDir: '"+sLastDir+"'");
-                    if ( sLastDir.equals("") )
-                    {
-                        sToolsDir = "cmdline-tools";    // No version directory..
-                        //System.out.println("(4)sToolsDir set: '"+sToolsDir+"'");
-                    }
-                    else
-                    {
-                        StringBuffer sB2 = new StringBuffer();
-                        sB2.append("cmdline-tools");
-                        sB2.append("/");
-                        sB2.append(sLastDir);
-                        
-                        sToolsDir = sB2.toString();
-                        //System.out.println("(5)sToolsDir set: '"+sToolsDir+"'");
-                    }
-                }
-			}
-			else
-			{
-				sB = new StringBuffer();
-				sB.append(sSDKPath);
-				sB.append("/tools");
-				tFile = new File(sB.toString());
-				if (tFile.exists())
-				{
-					sToolsDir = "tools";
-					//System.out.println("(6)sToolsDir set: '"+sToolsDir+"'");
-				}
-			}
-
-			//System.out.println("sToolsDir: '"+sToolsDir+"'");
+			//System.out.println("sBinPath: '"+sBinPath+"'");
 			
 			if (CREATE_ADV.equals(sActionCommand))
 			{
@@ -3668,6 +3644,7 @@ public class SDKManager
 			{
 				//System.out.println("CREATE_SUBMIT");
 				StringBuffer sb = new StringBuffer();
+				StringBuffer sB;
 				//StringBuffer sB;
 				String sName = "";
 				String sSystemImage = "";
@@ -3678,32 +3655,16 @@ public class SDKManager
 				boolean bIsSelected;
 				ListModel model;
 
-                if ( (sUseToolsBinDirectory != null) && (sUseToolsBinDirectory.equals("true")) )
-                {
-                    sB = new StringBuffer();
-                    sB.append(sSDKPath);
-                    sB.append("/tools");
-                    
-                    //File tFile = new File(sB.toString());
-                    tFile = new File(sB.toString());
-                    if ( tFile.exists() )
-                        sTDir = "tools";
-                    else
-                        sTDir = sToolsDir;
-                }
-                else
-                    sTDir = sToolsDir;
-
 				sb = new StringBuffer();
 
 				if (iOS == LINUX_MAC)
 				{
 					sb.append("export PATH=${PATH}:");
-					sb.append(sSDKPath);
+					//sb.append(sSDKPath);
+					//sb.append("/");
+					sb.append(sBinPath);
 					sb.append("/");
-					//sb.append(sToolsDir);
-					sb.append(sTDir);
-					sb.append("/bin");
+					sb.append("bin");
 
 					sb.append(";export JAVA_HOME=");
 					sb.append(sJavaPath);
@@ -3721,11 +3682,11 @@ public class SDKManager
 				{
 					sb.append("cd ");
 					//sb.append("SET PATH=");
-					sb.append(sSDKPath);
+					//sb.append(sSDKPath);
+					//sb.append("/");
+					sb.append(sBinPath);
 					sb.append("/");
-					//sb.append(sToolsDir);
-					sb.append(sTDir);
-					sb.append("/bin");
+					sb.append("bin");
 					//sb.append(";%PATH%");
 
 					sb.append("&&SET JAVA_HOME=");
@@ -3792,10 +3753,24 @@ public class SDKManager
 				model = devicesJList.getModel();
 				sDevice = (String) model.getElementAt(iAr[0]);
 				//System.out.println("sDevice: '"+sDevice+"'");
-
-				sb.append('"');
-				sb.append(sDevice);
-				sb.append('"');
+				
+				if ( (DevicesAr != null) && (DevicesAr.size() > 0) )
+				{
+				    DeviceInfo dInfo;
+				    for ( int iZ = 0; iZ < DevicesAr.size(); iZ++ )
+				    {
+				        dInfo = (DeviceInfo)DevicesAr.get(iZ);
+				        if ( dInfo != null )
+				        {
+				            if ( (dInfo.sName != null) && (dInfo.sName.equals(sDevice)) )
+				            {
+				                // Includes double quotes..
+				                sb.append(dInfo.sIdName);
+				                break;
+				            }
+				        }
+				    }
+				}
 
 				bIsSelected = forceCheckBox.isSelected();
 				if (bIsSelected)
@@ -3806,7 +3781,8 @@ public class SDKManager
 				if (iOS == WINDOWS)
 					sb.append("\n");
 
-				//System.out.println("sb: '"+sb.toString()+"'");                
+				//System.out.println("(Command)sb: '"+sb.toString()+"'"); 
+				
 				bHideOutput = false;
 				interactiveRequestLatch = new CountDownLatch(1);
 				sInternalCommand = sb.toString();
@@ -3819,16 +3795,22 @@ public class SDKManager
 					interactiveRequestLatch.await();
 				}
 				catch (InterruptedException ie)
-				{}
+				{
+				}
 
 				createFrame.setVisible(false);
 				createFrame.dispose();
-
+				
 			}
 			else if (CREATE_CANCEL.equals(sActionCommand))
 			{
 				createFrame.setVisible(false);
 				createFrame.dispose();
+			}
+			else if (REFRESH_PROPERTIES.equals(sActionCommand))
+			{
+			    RefreshProperties();
+			    GetBinPath();
 			}
 			else if (ACCEPT_LICENSES.equals(sActionCommand))
 			{
@@ -3850,22 +3832,17 @@ public class SDKManager
 				//System.out.println("ACCEPT_LICENSES_SUBMIT");
 				StringBuffer sb;
 
-                // Note:
-                // In this case the 'tools' directory doesn't exist yet
-                // so we want to use 'cmdline-tools'..
-				
-                //if ( (sUseToolsBinDirectory != null) && (sUseToolsBinDirectory.equals("true")) )
-                    //sToolsDir = "tools";
 
 				sb = new StringBuffer();
 
 				if (iOS == LINUX_MAC)
 				{
 					sb.append("export PATH=${PATH}:");
-					sb.append(sSDKPath);
+					//sb.append(sSDKPath);
+					//sb.append("/");
+					sb.append(sBinPath);
 					sb.append("/");
-					sb.append(sToolsDir);
-					sb.append("/bin");
+					sb.append("bin");
 
 					sb.append(";export JAVA_HOME=");
 					sb.append(sJavaPath);
@@ -3883,17 +3860,21 @@ public class SDKManager
 						sb.append("--no_https ");
 					}
 
-					sb.append("--sdk_root=");
-					sb.append(sSDKPath);
+                    if ( bUseSDKRoot )
+                    {
+                        sb.append("--sdk_root=");
+                        sb.append(sSDKPath);
+                    }
 				}
 				else
 				{
 					sb.append("cd ");
 					//sb.append("SET PATH=");
-					sb.append(sSDKPath);
+					//sb.append(sSDKPath);
+					//sb.append("/");
+					sb.append(sBinPath);
 					sb.append("/");
-					sb.append(sToolsDir);
-					sb.append("/bin");
+					sb.append("bin");
 					//sb.append(";%PATH%");
 
 					sb.append("&&SET JAVA_HOME=");
@@ -3912,8 +3893,12 @@ public class SDKManager
 						sb.append("--no_https ");
 					}
 
-					sb.append("--sdk_root=");
-					sb.append(sSDKPath);
+                    if ( bUseSDKRoot )
+                    {
+                        sb.append("--sdk_root=");
+                        sb.append(sSDKPath);
+                    }
+                    
 					sb.append("\n");
 				}
 
@@ -3970,6 +3955,7 @@ public class SDKManager
 				//String sT = "";
 				String[] tSa;
 				StringBuffer Sb;
+				StringBuffer sB;
 				int iLength;
 				int iSz;
 				int iLoc2 = 0;
@@ -4005,8 +3991,11 @@ public class SDKManager
 				
 				iLoc3 = 8;
 				for ( ; ! Character.isWhitespace(sBasedOn.charAt(iLoc3)); iLoc3++ );
+				// 'Android 6.0 (Marshmallow) Tag/ABI: default/armeabi-v7a'
+				//System.out.println("sBasedOn: '"+sBasedOn+"'");
 				sVersion = sBasedOn.substring(7, iLoc3);
 				sVersion = sVersion.trim();
+				//System.out.println("sVersion: '"+sVersion+"'");
 				if ( sVersion.equals("2.3.3") )
 				    sAPI = "10";
 				else if ( sVersion.equals("3.0") )
@@ -4049,7 +4038,16 @@ public class SDKManager
 				    sAPI = "29";
 				else if ( sVersion.equals("11.0") )
 				    sAPI = "30";
+				else if ( sVersion.equals("12.0") )
+				    sAPI = "31";
+				else if ( sVersion.equals("12L") )
+				    sAPI = "32";
+				else if ( sVersion.equals("13.0") )
+				    sAPI = "33";
+				else if ( sVersion.equals("14.0") )
+				    sAPI = "34";
 
+				
 				sb = new StringBuffer();
 
 				bIsStartSelected = startCheckBox.isSelected();
@@ -4060,28 +4058,13 @@ public class SDKManager
 					
 					// Check emulator directory..
 					sB = new StringBuffer(sSDKPath);
-					sB.append("/emulator");
+					sB.append("/");
+					sB.append("emulator");
 					file = new File(sB.toString());
 					if ( file.exists() )
 					{
 					    bUseEmulatorDirectory = true;
 					}
-					
-                    if ( (sUseToolsBinDirectory != null) && (sUseToolsBinDirectory.equals("true")) )
-                    {
-                        sB = new StringBuffer();
-                        sB.append(sSDKPath);
-                        sB.append("/tools");
-                        
-                        //File tFile = new File(sB.toString());
-                        tFile = new File(sB.toString());
-                        if ( tFile.exists() )
-                            sTDir = "tools";
-                        else
-                            sTDir = sToolsDir;
-                    }
-                    else
-                        sTDir = sToolsDir;
 
 					if ( iOS == LINUX_MAC )
 					{
@@ -4093,8 +4076,7 @@ public class SDKManager
 						if ( bUseEmulatorDirectory )
 						    sb.append("emulator");
 						else
-						    //sb.append(sToolsDir);
-						    sb.append(sTDir);
+						    sb.append(sBinPath);
 
 						sb.append(";export JAVA_HOME=");
 						sb.append(sJavaPath);
@@ -4119,18 +4101,10 @@ public class SDKManager
 						if ( bUseEmulatorDirectory )
 						    sb.append("emulator");
 						else
-						    //sb.append(sToolsDir);
-						    sb.append(sTDir);
+						    sb.append(sBinPath);
+						
 						//sb.append(";%PATH%");
 
-/*                        
-                        sb.append("&&SET PATH=");
-                        sb.append(sSDKPath);
-                        sb.append("/");
-                        sb.append(sToolsDir);
-                        sb.append("/bin");
-                        //sb.append(";%PATH%");
-/**/
 						sb.append("&&SET ANDROID_HOME=");
 						sb.append(sSDKPath);
 
@@ -4245,7 +4219,8 @@ public class SDKManager
 					    // Construct path..
 					    Sb = new StringBuffer();
 					    Sb.append(sSDKPath);
-					    Sb.append("/system-images/android-");
+					    Sb.append("/");
+					    Sb.append("system-images/android-");
 					    Sb.append(sAPI);
 					    Sb.append("/");
 					    Sb.append(sABI);
@@ -4323,31 +4298,15 @@ public class SDKManager
 				if ( bIsDeleteSelected )
 				{
 					bDoCommand = true;
-					
-                    if ( (sUseToolsBinDirectory != null) && (sUseToolsBinDirectory.equals("true")) )
-                    {
-                        sB = new StringBuffer();
-                        sB.append(sSDKPath);
-                        sB.append("/tools");
-                        
-                        //File tFile = new File(sB.toString());
-                        tFile = new File(sB.toString());
-                        if ( tFile.exists() )
-                            sTDir = "tools";
-                        else
-                            sTDir = sToolsDir;
-                    }
-                    else
-                        sTDir = sToolsDir;
 
 					if (iOS == LINUX_MAC)
 					{
 						sb.append("export PATH=${PATH}:");
-						sb.append(sSDKPath);
+						//sb.append(sSDKPath);
+						//sb.append("/");
+						sb.append(sBinPath);
 						sb.append("/");
-						//sb.append(sToolsDir);
-						sb.append(sTDir);
-						sb.append("/bin");
+						sb.append("bin");
 
 						sb.append(";export JAVA_HOME=");
 						sb.append(sJavaPath);
@@ -4365,11 +4324,11 @@ public class SDKManager
 					{
 						sb.append("cd ");
 						//sb.append("SET PATH=");
-						sb.append(sSDKPath);
+						//sb.append(sSDKPath);
+						//sb.append("/");
+						sb.append(sBinPath);
 						sb.append("/");
-						//sb.append(sToolsDir);
-						sb.append(sTDir);
-						sb.append("/bin");
+						sb.append("bin");
 						//sb.append(";%PATH%");
 
 						sb.append("&&SET JAVA_HOME=");
@@ -4398,24 +4357,33 @@ public class SDKManager
 						sb.append("\n");
 				}
 
-				//System.out.println("sb: '"+sb.toString()+"'");
+				//System.out.println("(AVDS_SUBMIT command)sb: '"+sb.toString()+"'");
+				
 				//System.out.println("bDoCommand: "+bDoCommand);
 				if ( bDoCommand )
 				{
 					bHideOutput = false;
 
-					commandRequestLatch = new CountDownLatch(1);
+					//commandRequestLatch = new CountDownLatch(1);
+					bCommandFinished = false;
 					sInternalCommand = sb.toString();
 					commandBgThread = new CommandBgThread();
 					commandBgThread.start();
 
 					// Wait for Thread to finish..
-					try
-					{
-						commandRequestLatch.await();
-					}
-					catch (InterruptedException ie)
-					{}
+                    while ( true )
+                    {
+                        try
+                        {
+                            Thread.sleep(333);
+                        }
+                        catch (InterruptedException ie)
+                        {
+                        }
+        
+                        if ( bCommandFinished )
+                            break;
+                    }
 
 				}
 
@@ -4484,24 +4452,19 @@ public class SDKManager
 				boolean bDoChannels = true;
 				boolean bDoUpdate = true;
 
-                // Note:
-                // In this case the 'tools' directory doesn't exist yet
-                // so we want to use 'cmdline-tools'..
-				
-                //if ( (sUseToolsBinDirectory != null) && (sUseToolsBinDirectory.equals("true")) )
-                    //sToolsDir = "tools";
                     
-                //System.out.println("sToolsDir: '"+sToolsDir+"'");
+                //System.out.println("sBinPath: '"+sBinPath+"'");
 
 				sb = new StringBuffer();
 
 				if ( iOS == LINUX_MAC )
 				{
 					sb.append("export PATH=${PATH}:");
-					sb.append(sSDKPath);
+					//sb.append(sSDKPath);
+					//sb.append("/");
+					sb.append(sBinPath);
 					sb.append("/");
-					sb.append(sToolsDir);
-					sb.append("/bin");
+					sb.append("bin");
 
 					sb.append(";export JAVA_HOME=");
 					sb.append(sJavaPath);
@@ -4518,10 +4481,11 @@ public class SDKManager
 				{
 					sb.append("cd ");
 					//sb.append("SET PATH=");
-					sb.append(sSDKPath);
+					//sb.append(sSDKPath);
+					//sb.append("/");
+					sb.append(sBinPath);
 					sb.append("/");
-					sb.append(sToolsDir);
-					sb.append("/bin");
+					sb.append("bin");
 					//sb.append(";%PATH%");
 					
 					sb.append("&&SET JAVA_HOME=");
@@ -4593,9 +4557,12 @@ public class SDKManager
 				}
 				
 				//sb.append("--include_obsolete ");
-				
-				sb.append("--sdk_root=");
-				sb.append(sSDKPath);
+
+                if ( bUseSDKRoot )
+                {
+                    sb.append("--sdk_root=");
+                    sb.append(sSDKPath);
+                }
 
 				if ( iOS == WINDOWS )
 					sb.append("\n");
@@ -4837,6 +4804,13 @@ public class SDKManager
 		String sBasedOn; // 'Android 5.0 (Lollipop) Tag/ABI: default/armeabi-v7a'	    
 
 	} //}}}
+
+    //{{{   DeviceInfo   	
+	class DeviceInfo
+	{
+	    String sName;
+	    String sIdName;
+	}    //}}}
 
 	//{{{	main()	
 	public static void main(String[] args)

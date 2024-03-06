@@ -4,11 +4,18 @@ use 'sdkmanager' and 'avdmanager' to manage packages, create and
 launch AVDs.
 
 ** Note **
-    In the later versions of the Android SDK the AVD commands 'avdmanager list' and 'avdmanager list device'
-    in cmdline-tools/bin have issues, so some AVD operations won't work.
-    But those commands in the old 'tools' package work.
-    In config.properties set 'include_obsolete' to "true", select 'Manage SDK->Packages' and select the
-    'tools' package.  Then set 'use_tools_bin_directory' to "true".
+    The directory structure for new manually created Android SDKs seems to have changed.
+    The new path should be like:
+    
+    [SDK Home]/cmdline-tools/[latest (.zip)]
+    
+    Without this path some commands for 'avdmanager', and possibly other others,
+    could fail.
+    
+    -- Note --
+    If updating the 'cmdline-tools;..' Package use the latest version number, like: 'cmdline-tools;13.0',
+    rather than using 'cmdline-tools;latest' as the 'latest' directory could already exist and cause problems.
+    
 
 Go into config.properties and fill in your paths to Java
 and the SDK that you want to manage.
@@ -22,48 +29,36 @@ Scroll down to "Command line tools only" and choose the Windows, Mac or Linux
 version of the Android SDK tools package.
 
 - Create a directory for your Android SDK, with no embedded spaces in the path,
-	like: C:\android-sdk
+    and include a 'cmdline-tools' directory.
+    
+	like: C:\android-sdk\cmdline-tools
 
-- Unzip into your directory.
+- Extract the .zip into your 'cmdline-tools' directory.
+- Rename the new 'cmdline-tools' directory to 'latest'
+    The directory structure should look like:
+    
+    android-sdk/cmdline-tools/latest
 
 Set the path of the new Android SDK directory, 'android_sdk_path', in config.properties.
 
-!! To ensure that the SDK has the best chance of being properly set up
-please follow these steps in order:
-
 Run SDK Manager.
 
-Select 'Manage SDK->Packages' and select the highest 'build-tools;..' level
-that you'd like to use, like 'build-tools;32.0.0', check "Accept licenses"
-and hit Submit. This should set up the 'emulator' and 'tools' directories/packages.
+Select 'Manage SDK->Packages', and one Package at a time,
+    select the "Accept licenses" checkbox
+    and do a "Submit":    
 
-** Note **
-    If you get: 'Warning: Dependant package with key emulator not found!'
-    while trying to install a Package, and you don't have the 'tools' directory yet,
-    set 'include_obsolete' in config.properties to 'true', list the Packages again and
-    select 'tools', check "Accept licenses" and hit Submit.
-
-Select 'Manage SDK->Packages' and select the highest 'platforms;..' level
-that you'd like to use, like 'platforms;android-30', check "Accept licenses"
-and hit Submit.
-
-Select 'Manage SDK->Packages' and check if the 'platform-tools' package was installed, from above,
-if it's there jump to below to finish accepting the licenses,
-otherwise select 'platform-tools', check "Accept licenses" and hit Submit.
-
-Select 'Manage SDK->Packages' and select the 'tools' package.
-You have to go into config.properties and set 'include_obsolete' to "true"
-in order to get the old 'tools' package to appear in the list.
-Check "Accept licenses" and hit Submit.    
-
+    'platform-tools'
+    'platforms;android-33'  ( Or whichever is the latest, or what is needed for your application )
+    'platforms;android-19'  ( Or whichever is needed for the minimum target SDK )
+    'build-tools;34.0.0'
+    'emulator'
+    
 Complete accepting licenses:
 Select 'Manage SDK->Accept Licenses', check "Accept Licenses" and hit Submit.
 
-This will ensure that many essential things, like the 'emulator',
-'platforms' and 'tools' directories, are properly set up and all the licenses are accepted.
+This will ensure that many essential things
+are properly set up and all the licenses are accepted.
 
-Once you have things working you can add packages like 'cmdline-tools;8.0'
-and 'system-images;...'.
 
 The biggest potential issue that can happen is that your firewall
 can block the execution of the 'sdkmanager' and 'avdmanager' commands
@@ -71,6 +66,7 @@ and you'll get partial or no results.
 
 You can try to fix this by temporarily turning off your firewall,
 to see if that fixes it, or by trying to set your firewall to not block it.
+Usually it's trying to block java.exe.
 
 It can interact with the SDK that Android Studio uses but it is
 recommended to use Android Studio to manage that.
@@ -86,7 +82,8 @@ Packages:
 The packages highlighted in green are packages that are currently installed.
 The ones in gold are packages that are installed and that an update is available for.
 
-It is recommended that you only install up to two packages at a time.
+It is recommended that you only install up to two packages at a time, but one at a time
+is preferable.
 
 If there are a large number of packages to update,
 or doing "Update all installed packages" has issues, it might be faster to manually
@@ -114,22 +111,18 @@ Having both gives it a better chance of launching.
 
 After you check the "Accept licenses" checkbox, licenses
 will automatically be accepted, and when an AVD is created
-it will do an Enter for the default choice for the:
+it will do an Enter for the default choice for the prompt:
 
 'Do you wish to create a custom hardware profile? [no]'
 
-prompt.
 
-
-SDK Manager 1.1.9:
-    New fixes that allow 'Manage AVDs->Create', and possibly more, to now work. 
 
 SDK Manager 1.2.0:
     Option workaround for "Installed Build Tools revision 32.0.0 is corrupted" dx.bat issues.
     
-SDK Manager 1.2.1:
-    Fixed 'avdmanager list device' not working issue.
-    This will make creating AVDs much more reliable.
+SDK Manager 1.3.0:
+    Detects new recommended SDK directory structure resulting in improved operations.
+    Improved device list for AVDs.
     
     
 Please let me know of any issues so that
