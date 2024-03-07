@@ -124,7 +124,10 @@ SDK Manager 1.3.0:
     Detects new recommended SDK directory structure resulting in improved operations.
     Improved device list for AVDs.
     
-    
+SDK Manager 1.3.2:
+    Some cleanup and improvements.
+
+
 Please let me know of any issues so that
 I can try to fix it.
 
