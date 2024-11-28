@@ -50,7 +50,7 @@ Select 'Manage SDK->Packages', and one Package at a time,
     'platform-tools'
     'platforms;android-33'  ( Or whichever is the latest, or what is needed for your application )
     'platforms;android-19'  ( Or whichever is needed for the minimum target SDK )
-    'build-tools;34.0.0'
+    'build-tools;34.0.0'    ( Or whichever is the latest )
     'emulator'
     
 Complete accepting licenses:
@@ -58,7 +58,6 @@ Select 'Manage SDK->Accept Licenses', check "Accept Licenses" and hit Submit.
 
 This will ensure that many essential things
 are properly set up and all the licenses are accepted.
-
 
 The biggest potential issue that can happen is that your firewall
 can block the execution of the 'sdkmanager' and 'avdmanager' commands
@@ -116,16 +115,15 @@ it will do an Enter for the default choice for the prompt:
 'Do you wish to create a custom hardware profile? [no]'
 
 
-
-SDK Manager 1.2.0:
-    Option workaround for "Installed Build Tools revision 32.0.0 is corrupted" dx.bat issues.
-    
 SDK Manager 1.3.0:
     Detects new recommended SDK directory structure resulting in improved operations.
     Improved device list for AVDs.
     
 SDK Manager 1.3.2:
     Some cleanup and improvements.
+
+SDK Manager 1.3.3:
+    Improved Exception prevention.
 
 
 Please let me know of any issues so that
